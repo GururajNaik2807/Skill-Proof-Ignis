@@ -4,18 +4,32 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ShieldCheck, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  ShieldCheck,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle2,
+  Code2,
+  Building2,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PasswordRequirements, isPasswordValid } from "@/components/auth/password-requirements";
+import {
+  PasswordRequirements,
+  isPasswordValid,
+} from "@/components/auth/password-requirements";
 
 export default function SignupPage() {
+  const [role, setRole] = useState<"developer" | "employer">("developer");
   const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [companyWebsite, setCompanyWebsite] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
   const supabase = createClient();
   const router = useRouter();
 
@@ -24,6 +38,11 @@ export default function SignupPage() {
 
     if (!isPasswordValid(password)) {
       setErrorMsg("Please satisfy all password security requirements.");
+      return;
+    }
+
+    if (role === "employer" && !companyName.trim()) {
+      setErrorMsg("Company or organization name is required for employers.");
       return;
     }
 
@@ -36,7 +55,10 @@ export default function SignupPage() {
       password,
       options: {
         data: {
-          full_name: fullName,
+          full_name: fullName.trim(),
+          role: role,
+          company_name: role === "employer" ? companyName.trim() : null,
+          company_website: role === "employer" ? companyWebsite.trim() : null,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
@@ -47,7 +69,11 @@ export default function SignupPage() {
       setLoading(false);
     } else {
       if (data?.session) {
-        router.push("/dashboard");
+        if (role === "employer") {
+          router.push("/recruiter/dashboard");
+        } else {
+          router.push("/onboarding");
+        }
         router.refresh();
       } else {
         setSuccessMsg(
@@ -59,10 +85,10 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12">
+    <div className="min-h-screen bg-warm-ivory flex flex-col justify-center items-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Brand */}
-        <Link href="/" className="flex items-center justify-center gap-2 mb-8 group">
+        <Link href="/" className="flex items-center justify-center gap-2.5 mb-8 group">
           <div className="w-9 h-9 rounded-lg bg-deep-green flex items-center justify-center text-white transition-transform group-hover:scale-105">
             <ShieldCheck className="w-5 h-5 text-emerald" />
           </div>
@@ -75,11 +101,45 @@ export default function SignupPage() {
         <div className="bg-white border border-border rounded-xl p-8 shadow-card">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-ink mb-1">
-              Create your account
+              Create an account
             </h1>
-            <p className="text-sm text-muted-text">
-              Back your technical claims with verifiable GitHub evidence.
+            <p className="text-xs text-muted-text">
+              Select your role to configure your personalized verification workspace.
             </p>
+          </div>
+
+          {/* Role Segmented Selector */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-soft-surface rounded-lg mb-6 border border-border">
+            <button
+              type="button"
+              onClick={() => {
+                setRole("developer");
+                setErrorMsg("");
+              }}
+              className={`flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all ${
+                role === "developer"
+                  ? "bg-white text-ink shadow-subtle border border-border/60"
+                  : "text-muted-text hover:text-ink"
+              }`}
+            >
+              <Code2 className="w-4 h-4 text-deep-green" />
+              Developer
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRole("employer");
+                setErrorMsg("");
+              }}
+              className={`flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all ${
+                role === "employer"
+                  ? "bg-white text-ink shadow-subtle border border-border/60"
+                  : "text-muted-text hover:text-ink"
+              }`}
+            >
+              <Building2 className="w-4 h-4 text-deep-green" />
+              Employer
+            </button>
           </div>
 
           {errorMsg && (
@@ -98,16 +158,36 @@ export default function SignupPage() {
 
           <form onSubmit={handleSignup} className="space-y-4">
             <Input
-              label="Full Name"
+              label={role === "developer" ? "Full Name" : "Hiring Manager / Recruiter Name"}
               type="text"
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Alex Morgan"
+              placeholder={role === "developer" ? "e.g. Alex Morgan" : "e.g. Sarah Jenkins"}
             />
 
+            {role === "employer" && (
+              <>
+                <Input
+                  label="Company / Team Name"
+                  type="text"
+                  required
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g. Acme Tech"
+                />
+                <Input
+                  label="Company Website (Optional)"
+                  type="url"
+                  value={companyWebsite}
+                  onChange={(e) => setCompanyWebsite(e.target.value)}
+                  placeholder="https://acme.dev"
+                />
+              </>
+            )}
+
             <Input
-              label="Email"
+              label="Work Email"
               type="email"
               required
               value={email}
@@ -124,28 +204,18 @@ export default function SignupPage() {
               placeholder="Create a strong password"
             />
 
-            {/* Interactive Password Requirements Box */}
-            {password.length > 0 && (
-              <PasswordRequirements value={password} />
-            )}
+            {password.length > 0 && <PasswordRequirements value={password} />}
 
-            <Button
-              type="submit"
-              loading={loading}
-              className="w-full mt-2"
-            >
-              Get Started
+            <Button type="submit" loading={loading} className="w-full mt-2">
+              {role === "developer" ? "Create Candidate Account" : "Access Recruiter Portal"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </form>
         </div>
 
-        <p className="text-center text-sm text-muted-text mt-6">
+        <p className="text-center text-xs text-muted-text mt-6">
           Already have an account?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-deep-green hover:underline"
-          >
+          <Link href="/login" className="font-medium text-deep-green hover:underline">
             Log in
           </Link>
         </p>
