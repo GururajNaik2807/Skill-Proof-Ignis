@@ -1,15 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import {
-  ShieldCheck,
-  LayoutDashboard,
-  FileText,
-  Award,
-  Briefcase,
-  CheckSquare,
-  LogOut,
-} from "lucide-react";
+import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
+import { ExternalLink } from "lucide-react";
 
 export default async function DashboardLayout({
   children,
@@ -25,91 +18,45 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, share_slug, role")
+    .eq("id", user.id)
+    .single();
+
   return (
-    <div className="min-h-screen bg-warm-ivory flex flex-col md:flex-row">
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white border-r border-border flex flex-col justify-between shrink-0">
-        <div>
-          {/* Logo */}
-          <div className="h-16 flex items-center gap-2 px-6 border-b border-border">
-            <div className="w-7 h-7 rounded-lg bg-deep-green flex items-center justify-center text-white">
-              <ShieldCheck className="w-4 h-4 text-emerald" />
-            </div>
-            <span className="font-bold text-base tracking-tight font-heading">
-              SkillProof
+    <div className="min-h-screen bg-warm-ivory text-ink flex">
+      {/* Collapsible Left Navigation Bar */}
+      <DashboardSidebar
+        userEmail={user.email || ""}
+        fullName={profile?.full_name || null}
+        shareSlug={profile?.share_slug || null}
+      />
+
+      {/* Main View Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 border-b border-border bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-status-proven"></span>
+            <span className="text-xs font-medium text-muted-text">
+              Real-time Codebase Evidence Synchronization Active
             </span>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-4 space-y-1">
+          <div className="flex items-center gap-3">
             <Link
-              href="/dashboard"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-ink hover:bg-soft-surface transition-colors"
+              href="/recruiter/dashboard"
+              className="text-xs text-muted-text hover:text-deep-green flex items-center gap-1 font-medium transition-colors"
             >
-              <LayoutDashboard className="w-4 h-4 text-muted-text" />
-              Dashboard
+              Recruiter Mode <ExternalLink className="w-3 h-3 opacity-60" />
             </Link>
-
-            <Link
-              href="/resume"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-ink hover:bg-soft-surface transition-colors"
-            >
-              <FileText className="w-4 h-4 text-muted-text" />
-              Resume Claims
-            </Link>
-
-            <Link
-              href="/skills"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-ink hover:bg-soft-surface transition-colors"
-            >
-              <Award className="w-4 h-4 text-muted-text" />
-              Evidence Matrix
-            </Link>
-
-            <Link
-              href="/job-match"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-ink hover:bg-soft-surface transition-colors"
-            >
-              <Briefcase className="w-4 h-4 text-muted-text" />
-              Job Match
-            </Link>
-
-            <Link
-              href="/micro-tasks"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-ink hover:bg-soft-surface transition-colors"
-            >
-              <CheckSquare className="w-4 h-4 text-muted-text" />
-              Micro-Tasks
-            </Link>
-          </nav>
-        </div>
-
-        {/* User Footer */}
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div className="truncate max-w-36">
-            <p className="text-xs font-medium text-ink truncate">
-              {user.email}
-            </p>
-            <p className="text-[10px] text-muted-text">Standard Plan</p>
           </div>
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                title="Sign out"
-                className="p-1.5 rounded-lg text-muted-text hover:text-status-error hover:bg-status-error/10 transition-colors cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        </div>
-      </aside>
+        </header>
 
-      {/* Main Content Viewport */}
-      <main className="flex-1 p-6 md:p-8 max-w-6xl mx-auto w-full">
-        {children}
-      </main>
+        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
