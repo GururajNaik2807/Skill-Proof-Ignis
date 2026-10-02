@@ -1,118 +1,101 @@
 # SkillProof
 
-> Evidence from the work behind the resume.
+> **Evidence from the work behind the resume.**
 
-SkillProof compares technical skills claimed on a resume with evidence from public GitHub work. It shows candidates what is supported, what is partial, and what still needs evidence. Recruiters can compare existing candidate evidence against job requirements.
+SkillProof compares the technical skills claimed on a resume with evidence from the candidate's public GitHub work. Candidates can see which claims are supported, which are partial, and which need more proof. Recruiters can compare candidate evidence against job requirements without relying on resume keywords alone.
 
-## Product Workflows
+## Core Workflows
 
-### Candidate
+### Candidate workflow
 
-`Resume -> Skills -> GitHub -> Evidence -> Job Match -> Skill Gaps -> Tasks`
+1. Upload and parse a PDF resume.
+2. Validate a GitHub username or profile URL.
+3. Scan public repositories for languages, dependencies, tests, Docker, CI, and activity.
+4. Review each skill as `PROVEN`, `PARTIAL`, or `CLAIMED-ONLY`.
+5. Compare verified evidence with a job description.
+6. Generate practical micro-tasks for unsupported or partial skills.
 
-Candidates can:
+### Recruiter workflow
 
-- Upload and parse a PDF resume.
-- Validate a GitHub username or profile URL.
-- Scan public repositories for languages, dependencies, tests, Docker, CI, and activity.
-- Review skills as `PROVEN`, `PARTIAL`, or `CLAIMED-ONLY`.
-- View job postings and apply to them directly by submitting their parsed resume and evidence.
-- Generate practical micro-tasks for unsupported or partial skills.
-- Share a public evidence report.
-
-### Recruiter
-
-`Job -> Required Skills -> Candidates -> Evidence`
-
-Recruiters can:
-
-- Create and manage Job Postings with automated skill requirement extraction.
-- Share Job Links to receive applications from verified candidates.
-- Browse applicants in a dense evidence pipeline dashboard.
-- View applicant job match percentages, evidence scores, and statuses.
-- Select candidates for side-by-side evidence comparison.
-- Open repository links and inspect stored scanner signals.
+1. Create or review a job posting.
+2. Extract required and preferred technical skills.
+3. Import resumes or receive applications through a public job link.
+4. Browse candidates in an evidence-focused pipeline.
+5. Compare job requirements with stored candidate evidence.
+6. Open repositories and inspect the available scanner signals.
 
 ## Evidence Model
 
-SkillProof does not mark a skill as supported from an AI response alone. Evidence comes from persisted GitHub scanner data:
+SkillProof never treats an AI response alone as proof. Statuses are based on persisted GitHub scanner data:
 
-| Status | Meaning | Color |
-| --- | --- | --- |
-| `PROVEN` | Matching repository signals, recent activity, and detected tests | Emerald |
-| `PARTIAL` | Matching code exists but testing or recency is limited | Amber |
-| `CLAIMED-ONLY` | Listed on the resume with no matching repository evidence | Zinc/Gray |
+| Status | Meaning |
+| --- | --- |
+| **PROVEN** | Matching repository signals, recent activity, and detected tests support the claim. |
+| **PARTIAL** | Matching code exists, but testing, depth, or recency is limited. |
+| **CLAIMED-ONLY** | The skill appears on the resume, but no matching repository evidence was found. |
 
-The current scanner persists repository URLs, languages, detected dependencies, tests, Docker, CI, and commit activity. README files and direct source-file paths are not currently persisted and are not presented as evidence.
+The scanner currently records repository URLs, languages, detected dependencies, tests, Docker, CI, and commit activity. README content and direct source-file paths are not persisted or presented as evidence.
 
-## Design System
+## Technology Stack
 
-The interface uses a modern, high-end technical design system featuring glassmorphism and subtle glows:
-
-- **Backgrounds**: Deep `zinc-950` and `zinc-900`
-- **Borders**: Refined `zinc-800` with subtle glows
-- **Primary text**: Crisp `zinc-100` and `zinc-200`
-- **Secondary text**: `zinc-400` and `zinc-500`
-- **Proven/Success**: `emerald-400` / `emerald-500`
-- **Reviewing/Partial**: `cyan-400` / `cyan-500`
-- **Warning/Claimed-only**: `amber-400` / `amber-500`
-- **Danger**: `rose-500`
-
-Typography relies on sharp, modern sans-serif fonts (like `Inter` or `Geist`) combined with `mono` fonts for data metrics and technical identifiers. The UI favors dense data tables, minimal padding, pill badges, and clean status indicators.
-
-## Technology
-
-- Next.js 16 (App Router + Turbopack)
+- Next.js 16 App Router with Turbopack
 - React 19
 - TypeScript
 - Tailwind CSS v4
 - Lucide React
 - Supabase PostgreSQL, Auth, Storage, and `@supabase/ssr`
-- Gemini API (Flash) for structured resume and job-description extraction
+- Google Gemini API with model fallback and deterministic fallbacks
 - GitHub REST API
-- `pdf-parse` (with Node.js canvas polyfills) for backend PDF text extraction
+- `unpdf` for PDF text extraction
 - Zod validation
 
-## Route Map
+## Route Overview
 
-### Public and Auth
+### Public and authentication
 
-- `/` landing page
-- `/login` email/password login and password reset request
-- `/signup` candidate/recruiter role selection
-- `/auth/callback` Supabase session callback
-- `/j/[slug]` public job posting and candidate application flow
-- `/v/[slug]` public candidate evidence report
+- `/` — landing page
+- `/login` — login and password reset request
+- `/signup` — candidate or recruiter registration
+- `/auth/callback` — Supabase session callback
+- `/auth/reset-password` — password update flow
+- `/v/[slug]` — public candidate evidence report
 
-### Candidate
+### Candidate workspace
 
-- `/dashboard` candidate overview and next action
-- `/onboarding` profile, GitHub validation, and resume upload
-- `/matrix` filterable skills and evidence report
-- `/tasks` evidence-building micro-tasks
+- `/dashboard` — evidence summary and next action
+- `/onboarding` — profile, GitHub validation, and resume upload
+- `/matrix` — filterable skills and evidence report
+- `/jobs` — candidate job matching
+- `/tasks` — evidence-building micro-tasks
 
-### Recruiter
+### Recruiter workspace
 
-- `/recruiter/dashboard` active jobs summary and candidate pipeline table
-- `/recruiter/jobs/create` job requirement extraction and creation
-- `/recruiter/jobs` list of active/closed jobs
-- `/recruiter/candidates` simplified pipeline and candidate routing
-- `/recruiter/compare` side-by-side evidence comparison
-- `/recruiter/candidate/[id]` individual candidate evidence audit
+- `/recruiter/dashboard` — recruiter overview, resume intake, candidate pipeline, and comparison
+- `/recruiter/jobs` — job management and requirements
+- `/recruiter/jobs/create` — create a job posting
+- `/recruiter/jobs/[id]` — job pipeline and evidence preview
+- `/recruiter/candidates` — applicant pipeline
+- `/recruiter/compare` — candidate comparison
+- `/recruiter/shortlist` — shortlisted applicants
+- `/recruiter/settings` — recruiter profile settings
+- `/recruiter/candidate/[id]` — candidate evidence audit
 
-## Role Security
+## Authentication and Role Security
 
-Roles are stored in `public.profiles.role` and are limited to `candidate` and `recruiter`. Middleware refreshes sessions and redirects users away from unauthorized route groups. Candidate and recruiter layouts repeat the server-side role check. 
+User roles are stored in `public.profiles.role` and are limited to:
 
-For the hackathon scope, candidate profiles default to `is_public: true` to seamlessly allow recruiters to review applications through the Supabase Admin client on server components, bypassing strict RLS restrictions.
+- `candidate`
+- `recruiter`
 
-Secrets remain server-side:
+Middleware refreshes Supabase sessions and redirects users away from unauthorized route groups. Candidate and recruiter layouts repeat the server-side role checks. Recruiter APIs also verify the authenticated recruiter role.
+
+Server-only secrets include:
 
 - `GITHUB_TOKEN`
 - `GEMINI_API_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-Only the public Supabase URL and anon key are exposed to the browser.
+Only the public Supabase URL and anon key are exposed to browser code.
 
 ## Setup
 
@@ -122,7 +105,7 @@ Install dependencies:
 npm install
 ```
 
-Create `.env.local`:
+Create `.env.local` in the project root:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -132,16 +115,60 @@ GITHUB_TOKEN=your-github-token
 GEMINI_API_KEY=your-gemini-key
 ```
 
-Configure the Supabase database schema, ensuring `profiles`, `resumes`, `resume_skills`, `github_repositories`, `skill_evidence`, `jobs`, and `job_applications` tables exist. 
+Configure the Supabase schema and policies for `profiles`, `resumes`, `resume_skills`, `github_repositories`, `skill_evidence`, `jobs`, `job_applications`, and `micro_tasks`. The `resumes` storage bucket should be private and protected by owner-scoped policies.
 
-Start development:
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-## Known Limitations
+Run the validation commands:
 
-- The bulk resume upload feature was deprecated in favor of a streamlined public job link opt-in workflow to ensure strong relational data integrity.
-- README evidence and direct source-file paths are not persisted by the current scanner.
-- Next.js middleware-to-proxy deprecation warnings may appear in the console.
+```bash
+npm run lint
+npm run build
+```
+
+## Gemini Resilience
+
+Gemini calls use a shared retry and model-fallback client. Transient `429`, `503`, overload, and quota errors trigger retries and alternate configured models. Resume extraction, job parsing, and micro-task generation also have deterministic fallback behavior so temporary Gemini unavailability does not immediately break the product workflow.
+
+You can override the model order with:
+
+```env
+GEMINI_MODEL_FALLBACKS=gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash,gemini-1.5-flash
+```
+
+## Design Direction
+
+SkillProof uses an Obsidian and Electric visual system inspired by technical developer tooling:
+
+- True obsidian background: `#050505`
+- Elevated surface: `#0A0A0A`
+- Primary text: `#EDEDED`
+- Muted text: `#8A8F98`
+- Electric cyan action accent: `#00E5FF`
+- Emerald proven state: `#00E599`
+- Amber partial state: `#F59E0B`
+- Violet comparison accent: `#8B5CF6`
+
+The interface favors evidence tables, repository rows, restrained borders, compact status indicators, and clear technical hierarchy over decorative cards or generic AI-dashboard patterns.
+
+## Current Limitations
+
+- Bulk resume intake processes files independently, but the current schema does not yet provide a complete recruiter-import-to-candidate linking workflow.
+- README evidence and direct source-file paths are not persisted by the scanner.
+- Next.js reports a middleware-to-proxy deprecation warning.
+- A small number of existing React hook dependency warnings remain.
+
+## Team
+
+**Team Ignis (T07)**
+
+Domain: Edutech
+
+- Gururaj Ashok Naik — IT, Third Year, Universal College of Engineering, Mumbai University
+- Roshan Venkatrajam Padala — Data Engineering, Third Year, Universal College of Engineering, Mumbai University
+- Nitesh Ratan Narakar — AIML, Third Year, Universal College of Engineering, Mumbai University
+- Raut Tejasvi Kesharinath Jagruti — IT, Third Year, Universal College of Engineering, Mumbai University
