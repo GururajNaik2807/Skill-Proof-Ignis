@@ -33,11 +33,23 @@ export default function MicroTasksPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [notice, setNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const handleGenerateTasks = async () => {
+const handleGenerateTasks = async () => {
     setIsGenerating(true);
     setNotice(null);
+
     try {
-      const res = await fetch("/api/tasks/generate", { method: "POST" });
+      const res = await fetch("/api/tasks/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          `Server returned status ${res.status}. Check API route configuration.`
+        );
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate tasks");
 

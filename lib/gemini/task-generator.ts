@@ -1,89 +1,118 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "",
-});
+const apiKey = process.env.GEMINI_API_KEY || "";
+const genAI = new GoogleGenerativeAI(apiKey);
 
-export interface GeneratedTask {
+export interface SkillGapTarget {
+  skill_name: string;
+  status: "partial" | "claimed";
+  claimed_context?: string | null;
+}
+
+export interface GeneratedMicroTask {
   skill_name: string;
   title: string;
   description: string;
   difficulty: "beginner" | "intermediate" | "advanced";
   estimated_time: string;
   deliverables: string[];
+  evidence_created: string;
   verification_target: string;
 }
 
-export async function generateMicroTasksForSkills(
-  targetSkills: { name: string; status: string; reason?: string }[],
-  repositories: { name: string; primary_language: string | null; has_tests: boolean; has_docker: boolean }[]
-): Promise<GeneratedTask[]> {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not defined in environment variables.");
+export async function generateMicroTasks(
+  gaps: SkillGapTarget[],
+  targetRole?: string
+): Promise<GeneratedMicroTask[]> {
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY environment variable is not defined.");
   }
 
+  if (gaps.length === 0) {
+    return [];
+  }
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.2,
+    },
+  });
+
   const prompt = `
-You are a senior engineering staff mentor. 
-Generate targeted, highly realistic 1-2 hour coding micro-tasks for a developer to prove their technical skills in their public GitHub repositories.
+You are a lead software engineer designing verifiable coding tasks.
+Create 1 to 3 targeted micro-tasks (1-2 hours each) for the candidate's unverified skill gaps.
+Each task must produce tangible GitHub artifacts (commits, unit tests, or container configs) that our scanner can verify.
 
-Target Skills to Verify:
-${JSON.stringify(targetSkills, null, 2)}
+Target Role: "${targetRole || "Software Engineer"}"
 
-Candidate Existing Repositories:
-${JSON.stringify(repositories.slice(0, 5), null, 2)}
+Skill Gaps to Address:
+${JSON.stringify(gaps, null, 2)}
 
-Requirements for each micro-task:
-1. Practical & scoped to 60-120 minutes max.
-2. Focus on physical codebase artifacts: unit test suites, Dockerfiles, GitHub Actions workflows, or modular API endpoints.
-3. Explicitly state the verification target (what file or signal SkillProof will detect on the next scan).
+TASK REQUIREMENTS:
+- title: Action-oriented title (e.g., "Implement Unit Test Suite for FastAPI Authentication")
+- description: Clear implementation details and problem scope
+- difficulty: "beginner" | "intermediate" | "advanced"
+- estimated_time: e.g. "1.5 hours"
+- deliverables: Array of 2-3 specific code files or features to push
+- evidence_created: Summary of the evidence produced (e.g., "Passing test suite and modular service structure")
+- verification_target: The exact pattern the scanner looks for (e.g., "pytest test runner execution with >= 80% branch coverage")
 
-Return a strictly valid JSON array of objects with no markdown backticks, no code block wrapping, and no commentary:
+Return a JSON array of objects adhering strictly to this schema:
 [
   {
-    "skill_name": "Docker",
-    "title": "Add Multi-Stage Dockerfile & Healthcheck",
-    "description": "Containerize your existing service using a multi-stage build to keep production image size under 150MB.",
-    "difficulty": "intermediate",
-    "estimated_time": "90 mins",
-    "deliverables": ["Dockerfile in root with build & run stages", "docker-compose.yml testing local ports"],
-    "verification_target": "Dockerfile and docker-compose.yml in default branch"
+    "skill_name": "string",
+    "title": "string",
+    "description": "string",
+    "difficulty": "beginner" | "intermediate" | "advanced",
+    "estimated_time": "string",
+    "deliverables": ["string"],
+    "evidence_created": "string",
+    "verification_target": "string"
   }
 ]
 `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
-      },
-    });
+    const result = await model.generateContent(prompt);
+    const parsed = JSON.parse(result.response.text());
 
-    const rawText = response.text?.trim() || "";
-    if (rawText) {
-      const cleaned = rawText.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-      const parsed = JSON.parse(cleaned);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.map((item) => ({
+      skill_name: String(item.skill_name || "General"),
+      title: String(item.title || "Code Verification Task"),
+      description: String(item.description || "Implement and push code artifact."),
+      difficulty: (["beginner", "intermediate", "advanced"].includes(item.difficulty)
+        ? item.difficulty
+        : "intermediate") as "beginner" | "intermediate" | "advanced",
+      estimated_time: String(item.estimated_time || "1.5 hours"),
+      deliverables: Array.isArray(item.deliverables)
+        ? item.deliverables.map(String)
+        : ["Passing unit tests", "Modular implementation commit"],
+      evidence_created: String(
+        item.evidence_created || `Verified implementation artifact for ${item.skill_name}`
+      ),
+      verification_target: String(
+        item.verification_target || `Passing tests and active commit for ${item.skill_name}`
+      ),
+    }));
   } catch (err) {
-    console.warn("[Task Generator] AI call failed, generating standard fallback tasks:", err);
-  }
+    console.error("Task generator execution error:", err);
 
-  // Deterministic fallback if model endpoint is experiencing load spikes
-  return targetSkills.slice(0, 3).map((s) => ({
-    skill_name: s.name,
-    title: `Implement automated test suite for ${s.name}`,
-    description: `Configure an automated unit test suite using standard test runners (e.g. Jest, PyTest, or Vitest) to achieve test coverage on core endpoints.`,
-    difficulty: "intermediate",
-    estimated_time: "90 mins",
-    deliverables: [
-      `Create tests/ directory with at least 3 unit test cases`,
-      `Add test command script to package manifest`,
-    ],
-    verification_target: "tests/ directory and test script detected in repository root",
-  }));
+    return gaps.slice(0, 3).map((gap) => ({
+      skill_name: gap.skill_name,
+      title: `Build Test Suite & Modular Service for ${gap.skill_name}`,
+      description: `Create an isolated public repository module implementing standard design patterns for ${gap.skill_name}, accompanied by unit test assertions.`,
+      difficulty: "intermediate",
+      estimated_time: "1.5 hours",
+      deliverables: [
+        `Configured ${gap.skill_name} test runner with passing assertions`,
+        `Public Git repository commit demonstrating modular architecture`,
+      ],
+      evidence_created: `Unit tests and modular architecture artifact for ${gap.skill_name}`,
+      verification_target: `Detect passing tests and recent commit signal for ${gap.skill_name}`,
+    }));
+  }
 }

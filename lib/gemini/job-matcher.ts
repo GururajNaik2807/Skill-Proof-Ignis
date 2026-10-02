@@ -1,154 +1,176 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "",
-});
+const apiKey = process.env.GEMINI_API_KEY || "";
+const genAI = new GoogleGenerativeAI(apiKey);
 
-export interface ExtractedJobSkills {
-  role_title: string;
-  required_skills: string[];
-  preferred_skills: string[];
+export interface CandidateSkillInput {
+  skill_name: string;
+  status: "proven" | "partial" | "claimed";
+  confidence_score?: number;
+  evidence_summary?: string | null;
 }
 
-export interface SkillMatchComparison {
-  skill: string;
-  status: "proven" | "partial" | "claimed" | "missing";
-  confidence_score: number;
-  evidence_summary: string;
+export interface ParsedJobRequirement {
+  skill_name: string;
+  importance: "required" | "preferred";
+  minimum_tier?: "proven" | "partial" | "claimed";
 }
 
-export interface JobMatchReport {
-  role_title: string;
-  match_percentage: number;
-  required_count: number;
-  provenMatches: SkillMatchComparison[];
-  partialMatches: SkillMatchComparison[];
-  missingSkills: SkillMatchComparison[];
+export interface MatchScoreResult {
+  overall_score: number;
+  matching_skills: string[];
+  missing_skills: string[];
+  partial_skills: string[];
+  summary: string;
+  recommendations: string[];
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export interface JobMatchResult {
+  match_score: number;
+  summary: string;
+  matching_skills: string[];
+  missing_skills: string[];
+  partial_skills: string[];
+  recommendations: string[];
+}
 
-export async function parseJobDescription(jdText: string): Promise<ExtractedJobSkills> {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not defined in environment variables.");
+/**
+ * Parses raw job descriptions into structured skill requirements using Gemini.
+ */
+export async function parseJobDescription(jobDescription: string): Promise<ParsedJobRequirement[]> {
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY environment variable is not defined.");
   }
 
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.1,
+    },
+  });
+
   const prompt = `
-You are an expert technical recruiter and engineering hiring manager.
-Analyze the following Job Description (JD) and extract:
-1. The standard job title/role.
-2. A list of strict REQUIRED technical skills, programming languages, databases, or frameworks.
-3. A list of PREFERRED / NICE-TO-HAVE technical skills.
-
-Normalize all skill names to their canonical forms (e.g. "ReactJS" -> "React", "Postgres" -> "PostgreSQL", "TS" -> "TypeScript", "AWS Cloud" -> "AWS").
-
-Return a strictly valid JSON object with no markdown backticks, no code block wrapping, and no commentary:
-{
-  "role_title": "Software Engineer",
-  "required_skills": ["TypeScript", "Next.js", "PostgreSQL", "Docker"],
-  "preferred_skills": ["Redis", "Kubernetes", "GraphQL"]
-}
+You are a technical recruiter parsing technical job requirements.
+Extract all required and preferred technical skills, languages, frameworks, databases, and tools from this job description.
 
 Job Description:
 """
-${jdText.slice(0, 8000)}
+${jobDescription.slice(0, 10000)}
 """
+
+Return a JSON array of objects with this schema:
+[
+  {
+    "skill_name": "string",
+    "importance": "required" | "preferred"
+  }
+]
 `;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.1,
-        },
-      });
+  try {
+    const result = await model.generateContent(prompt);
+    const parsed = JSON.parse(result.response.text());
+    if (!Array.isArray(parsed)) return [];
 
-      const rawText = response.text?.trim() || "";
-      if (rawText) {
-        const cleaned = rawText.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-        const parsed = JSON.parse(cleaned);
-        return {
-          role_title: parsed.role_title || "Target Software Engineer",
-          required_skills: Array.isArray(parsed.required_skills) ? parsed.required_skills : [],
-          preferred_skills: Array.isArray(parsed.preferred_skills) ? parsed.preferred_skills : [],
-        };
-      }
-    } catch (err) {
-      console.warn(`[Job Matching] Attempt ${attempt} failed:`, err);
-      if (attempt < 2) await sleep(1200);
+    return parsed.map((item) => ({
+      skill_name: String(item.skill_name || "").trim(),
+      importance: item.importance === "preferred" ? "preferred" : "required",
+    })).filter((item) => item.skill_name.length > 0);
+  } catch (err) {
+    console.error("parseJobDescription error:", err);
+    return [];
+  }
+}
+
+/**
+ * Calculates a match score deterministically between parsed job requirements and candidate evidence.
+ */
+export function calculateMatchScore(
+  requirements: ParsedJobRequirement[],
+  candidateSkills: CandidateSkillInput[]
+): MatchScoreResult {
+  if (!requirements || requirements.length === 0) {
+    return {
+      overall_score: 0,
+      matching_skills: [],
+      missing_skills: [],
+      partial_skills: [],
+      summary: "No job requirements provided for evaluation.",
+      recommendations: ["Supply job requirements to compute match score."],
+    };
+  }
+
+  const skillLookup = new Map<string, CandidateSkillInput>();
+  candidateSkills.forEach((s) => {
+    skillLookup.set(s.skill_name.toLowerCase().trim(), s);
+  });
+
+  const matching: string[] = [];
+  const partial: string[] = [];
+  const missing: string[] = [];
+
+  let earnedPoints = 0;
+  let totalPoints = 0;
+
+  for (const req of requirements) {
+    const weight = req.importance === "required" ? 3 : 1;
+    totalPoints += weight;
+
+    const matched = skillLookup.get(req.skill_name.toLowerCase().trim());
+
+    if (!matched) {
+      missing.push(req.skill_name);
+    } else if (matched.status === "proven") {
+      earnedPoints += weight;
+      matching.push(req.skill_name);
+    } else if (matched.status === "partial") {
+      earnedPoints += weight * 0.5;
+      partial.push(req.skill_name);
+    } else {
+      earnedPoints += weight * 0.2;
+      partial.push(req.skill_name);
     }
   }
 
-  // Fallback if model load occurs
+  const rawScore = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+  const overall_score = Math.round(Math.min(100, Math.max(0, rawScore)));
+
+  const recommendations: string[] = [];
+  if (missing.length > 0) {
+    recommendations.push(`Complete verification tasks for missing competencies: ${missing.slice(0, 3).join(", ")}.`);
+  }
+  if (partial.length > 0) {
+    recommendations.push(`Promote partial evidence to proven code via test suites for: ${partial.slice(0, 3).join(", ")}.`);
+  }
+
   return {
-    role_title: "Full-Stack Engineer",
-    required_skills: ["JavaScript", "Python", "React", "Git"],
-    preferred_skills: ["Docker", "PostgreSQL"],
+    overall_score,
+    matching_skills: matching,
+    missing_skills: missing,
+    partial_skills: partial,
+    summary: `Candidate matches ${matching.length} of ${requirements.length} target job criteria with an overall score of ${overall_score}%.`,
+    recommendations,
   };
 }
 
-export function calculateMatchScore(
-  jobSkills: ExtractedJobSkills,
-  userEvidence: { skill_name: string; status: "proven" | "partial" | "claimed"; confidence_score: number; evidence_summary: string | null }[]
-): JobMatchReport {
-  const provenMatches: SkillMatchComparison[] = [];
-  const partialMatches: SkillMatchComparison[] = [];
-  const missingSkills: SkillMatchComparison[] = [];
-
-  const evidenceMap = new Map<string, (typeof userEvidence)[0]>();
-  for (const ev of userEvidence) {
-    evidenceMap.set(ev.skill_name.toLowerCase(), ev);
-  }
-
-  for (const skill of jobSkills.required_skills) {
-    const match = evidenceMap.get(skill.toLowerCase());
-
-    if (match) {
-      if (match.status === "proven") {
-        provenMatches.push({
-          skill,
-          status: "proven",
-          confidence_score: Number(match.confidence_score),
-          evidence_summary: match.evidence_summary || "Verified in code with automated unit test suites.",
-        });
-      } else if (match.status === "partial") {
-        partialMatches.push({
-          skill,
-          status: "partial",
-          confidence_score: Number(match.confidence_score),
-          evidence_summary: match.evidence_summary || "Found in repository files, but lacking test coverage or recent commits.",
-        });
-      } else {
-        missingSkills.push({
-          skill,
-          status: "claimed",
-          confidence_score: 0.2,
-          evidence_summary: "Claimed on resume, but completely absent from public repositories.",
-        });
-      }
-    } else {
-      missingSkills.push({
-        skill,
-        status: "missing",
-        confidence_score: 0.0,
-        evidence_summary: "Not found in resume claims or public GitHub repositories.",
-      });
-    }
-  }
-
-  const totalReq = jobSkills.required_skills.length || 1;
-  const scoreNumerator = (provenMatches.length * 1.0) + (partialMatches.length * 0.5);
-  const matchPercentage = Math.min(100, Math.round((scoreNumerator / totalReq) * 100));
+/**
+ * End-to-end evaluation using Gemini directly.
+ */
+export async function matchCandidateToJob(
+  jobTitle: string,
+  jobDescription: string,
+  candidateSkills: CandidateSkillInput[]
+): Promise<JobMatchResult> {
+  const requirements = await parseJobDescription(jobDescription);
+  const result = calculateMatchScore(requirements, candidateSkills);
 
   return {
-    role_title: jobSkills.role_title,
-    match_percentage: matchPercentage,
-    required_count: totalReq,
-    provenMatches,
-    partialMatches,
-    missingSkills,
+    match_score: result.overall_score,
+    summary: result.summary,
+    matching_skills: result.matching_skills,
+    missing_skills: result.missing_skills,
+    partial_skills: result.partial_skills,
+    recommendations: result.recommendations,
   };
 }

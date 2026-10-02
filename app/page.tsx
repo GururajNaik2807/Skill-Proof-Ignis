@@ -1,8 +1,11 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+/* eslint-disable react/no-unescaped-entities */
+
+import React, { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -24,6 +27,7 @@ import {
   FileCode,
   ShieldAlert
 } from "lucide-react";
+import { AuthModal } from "@/components/auth/auth-modal";
 
 // --- CSS for custom animations ---
 const styles = `
@@ -71,9 +75,23 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
   return <div ref={ref} className={`reveal ${className}`}>{children}</div>;
 };
 
+function AuthHandler({ setAuthMode }: { setAuthMode: (mode: "login" | "candidate" | "recruiter" | "signup" | null) => void }) {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("auth") === "login") {
+      setAuthMode("login");
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, [searchParams, setAuthMode]);
+  return null;
+}
+
 // --- Main Page Component ---
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "candidate" | "recruiter" | "signup" | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -85,6 +103,9 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#EDEDED] selection:bg-[#00E5FF]/30 font-sans overflow-x-hidden">
+      <Suspense fallback={null}>
+        <AuthHandler setAuthMode={setAuthMode} />
+      </Suspense>
       <style dangerouslySetInnerHTML={{ __html: styles }} />
 
       {/* --- NAVIGATION --- */}
@@ -108,15 +129,20 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-4 text-sm font-medium">
-            <Link href="/login" className="text-[#8A8F98] hover:text-[#EDEDED] transition-colors hidden sm:block">
+            <button
+              type="button"
+              onClick={() => setAuthMode("login")}
+              className="text-[#8A8F98] hover:text-[#EDEDED] transition-colors hidden sm:block cursor-pointer"
+            >
               Log in
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-[#EDEDED] text-[#050505] px-4 py-2 rounded-md transition-transform hover:scale-105"
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMode("candidate")}
+              className="bg-[#EDEDED] text-[#050505] px-4 py-2 rounded-md transition-transform hover:scale-105 cursor-pointer"
             >
               Get Started
-            </Link>
+            </button>
           </div>
         </div>
       </nav>
@@ -136,8 +162,6 @@ export default function LandingPage() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="max-w-xl"
             >
-              
-              
               <h1 className="text-5xl lg:text-7xl font-semibold tracking-tight leading-[1.05] mb-6">
                 Your resume says it. <br />
                 <span className="text-[#8A8F98]">Your commits prove it.</span>
@@ -148,14 +172,22 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/signup" className="group relative inline-flex items-center justify-center gap-2 bg-[#EDEDED] text-[#050505] px-6 py-3.5 rounded-lg font-medium transition-transform hover:scale-[1.02] active:scale-95">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("candidate")}
+                  className="group relative inline-flex items-center justify-center gap-2 bg-[#EDEDED] text-[#050505] px-6 py-3.5 rounded-lg font-medium transition-transform hover:scale-[1.02] active:scale-95 cursor-pointer"
+                >
                   Connect GitHub
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                   <div className="absolute inset-0 rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.3)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
-                <Link href="/signup?role=recruiter" className="inline-flex items-center justify-center gap-2 bg-[#0A0A0A] border border-white/10 text-[#EDEDED] px-6 py-3.5 rounded-lg font-medium hover:bg-white/5 transition-colors">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("recruiter")}
+                  className="inline-flex items-center justify-center gap-2 bg-[#0A0A0A] border border-white/10 text-[#EDEDED] px-6 py-3.5 rounded-lg font-medium hover:bg-white/5 transition-colors cursor-pointer"
+                >
                   Explore Recruiter View
-                </Link>
+                </button>
               </div>
             </motion.div>
 
@@ -382,7 +414,6 @@ export default function LandingPage() {
               <Reveal delay={400}>
                 <div className="bg-[#0A0A0A] border border-white/10 rounded-xl overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.05)] relative">
                   <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3 bg-[#050505]">
-                    {/* <Box className="w-5 h-5 text-[#8A8F98]" /> */}
                     <span className="font-mono text-sm font-medium text-[#EDEDED]">expense-dashboard</span>
                     <span className="ml-auto text-[10px] uppercase tracking-wider text-[#00E5FF] font-bold flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-[#00E5FF] animate-pulse shadow-[0_0_8px_#00E5FF]"></span> Analyzing
@@ -636,7 +667,11 @@ export default function LandingPage() {
                       </div>
                       <p className="text-sm text-[#EDEDED] font-medium mb-1">&quot;Containerize an existing project.&quot;</p>
                       <p className="text-xs text-[#8A8F98] mb-4">Estimated time: 1–2 hours • Output: Dockerfile + documentation</p>
-                      <button className="text-xs font-bold text-[#050505] bg-[#EDEDED] px-4 py-2 rounded transition-transform hover:scale-105 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => setAuthMode("candidate")}
+                        className="text-xs font-bold text-[#050505] bg-[#EDEDED] px-4 py-2 rounded transition-transform hover:scale-105 w-full sm:w-auto cursor-pointer"
+                      >
                         Complete Task
                       </button>
                     </div>
@@ -700,24 +735,34 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  href="/signup"
-                  className="group relative inline-flex items-center justify-center gap-2 bg-[#EDEDED] text-[#050505] px-8 py-4 rounded-lg font-bold transition-transform hover:scale-[1.02] active:scale-95 text-lg"
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("candidate")}
+                  className="group relative inline-flex items-center justify-center gap-2 bg-[#EDEDED] text-[#050505] px-8 py-4 rounded-lg font-bold transition-transform hover:scale-[1.02] active:scale-95 text-lg cursor-pointer"
                 >
                   Build Your SkillProof <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                   <div className="absolute inset-0 rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.3)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
-                <Link
-                  href="/signup?role=recruiter"
-                  className="inline-flex items-center justify-center gap-2 bg-[#0A0A0A] border border-white/10 hover:bg-white/5 text-[#EDEDED] px-8 py-4 rounded-lg font-bold transition-colors text-lg"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("recruiter")}
+                  className="inline-flex items-center justify-center gap-2 bg-[#0A0A0A] border border-white/10 hover:bg-white/5 text-[#EDEDED] px-8 py-4 rounded-lg font-bold transition-colors text-lg cursor-pointer"
                 >
                   For Recruiters
-                </Link>
+                </button>
               </div>
             </Reveal>
           </div>
         </section>
       </main>
+
+      {/* Unified Floating Modal Trigger */}
+      {authMode && (
+        <AuthModal
+          mode={authMode === "signup" ? "candidate" : authMode}
+          onClose={() => setAuthMode(null)}
+        />
+      )}
 
       {/* --- FOOTER --- */}
       <footer className="border-t border-white/10 bg-[#050505] py-12">
@@ -732,7 +777,13 @@ export default function LandingPage() {
           <div className="flex gap-6 text-sm font-medium text-[#8A8F98]">
             <Link href="#" className="hover:text-[#EDEDED]">Privacy</Link>
             <Link href="#" className="hover:text-[#EDEDED]">Terms</Link>
-            <Link href="/login" className="hover:text-[#EDEDED]">Log In</Link>
+            <button
+              type="button"
+              onClick={() => setAuthMode("login")}
+              className="hover:text-[#EDEDED] transition-colors cursor-pointer"
+            >
+              Log In
+            </button>
           </div>
         </div>
       </footer>

@@ -1,80 +1,61 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { extractSkillsFromResume } from "@/lib/gemini/extractor";
+import { extractSkills, ExtractedSkill } from "@/lib/gemini/extractor";
 
 export async function POST() {
   try {
     const supabase = await createClient();
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 1. Fetch latest uploaded resume for this user
-    const { data: resume, error: resumeError } = await supabase
+    const { data: resume } = await supabase
       .from("resumes")
-      .select("*")
+      .select("id, raw_text")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
-    if (resumeError || !resume || !resume.parsed_text) {
-      return NextResponse.json(
-        { error: "No resume text found. Please upload a resume first." },
-        { status: 400 }
-      );
+    if (!resume || !resume.raw_text) {
+      return NextResponse.json({ error: "No active resume found to re-parse" }, { status: 400 });
     }
 
-    // 2. Extract structured skills via Gemini
-    const extractedSkills = await extractSkillsFromResume(resume.parsed_text);
+    const extracted: ExtractedSkill[] = await extractSkills(resume.raw_text);
 
-    if (extractedSkills.length === 0) {
-      return NextResponse.json(
-        { error: "No skills could be identified in the uploaded document." },
-        { status: 422 }
-      );
-    }
-
-    // 3. Clear existing resume claims for freshness
     await supabase.from("resume_skills").delete().eq("user_id", user.id);
 
-    // 4. Batch insert into resume_skills
-    const insertPayload = extractedSkills.map((s) => ({
-      resume_id: resume.id,
-      user_id: user.id,
-      skill_name: s.name,
-      claimed_context: s.claimed_context,
-    }));
+    if (extracted.length > 0) {
+      const toInsert = extracted.map((s: ExtractedSkill) => ({
+        user_id: user.id,
+        resume_id: resume.id,
+        skill_name: s.skill_name,
+        category: s.category,
+        claimed_context: s.claimed_context,
+      }));
 
-    const { error: insertError } = await supabase
-      .from("resume_skills")
-      .insert(insertPayload);
-
-    if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      await supabase.from("resume_skills").insert(toInsert);
     }
 
-    // 5. Also upsert canonical entries into public.skills catalog
-    const catalogPayload = extractedSkills.map((s) => ({
-      name: s.name,
-      category: s.category,
-    }));
-
     await supabase
-      .from("skills")
-      .upsert(catalogPayload, { onConflict: "name", ignoreDuplicates: true });
+      .from("profiles")
+      .update({ last_parse_at: new Date().toISOString() })
+      .eq("id", user.id);
 
     return NextResponse.json({
       success: true,
-      extractedCount: extractedSkills.length,
-      skills: extractedSkills,
+      extractedCount: extracted.length,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Failed to extract skills";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Resume re-parse error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to parse skills" },
+      { status: 500 }
+    );
   }
 }

@@ -1,99 +1,104 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { extractText, getDocumentProxy } from "unpdf";
+import { extractSkills, ExtractedSkill } from "@/lib/gemini/extractor";
 
-export const runtime = "nodejs";
+// Safe import for pdf-parse in Next.js / TypeScript
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse");
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
     const supabase = await createClient();
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const formData = await req.formData();
+    const file = formData.get("resume") as File | null;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    if (!file || file.type !== "application/pdf") {
+      return NextResponse.json({ error: "Valid PDF file required" }, { status: 400 });
     }
 
-    if (file.type !== "application/pdf") {
-      return NextResponse.json(
-        { error: "Only PDF files are supported" },
-        { status: 400 }
-      );
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: "File exceeds 5MB limit" },
-        { status: 400 }
-      );
-    }
-
+    // 1. Convert File buffer to Node Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 1. Extract plain text from PDF using unpdf
     let parsedText = "";
     try {
-      const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer));
-      const { text } = await extractText(pdf, { mergePages: true });
-      parsedText = Array.isArray(text) ? text.join("\n") : (text || "");
-    } catch (parseErr: unknown) {
-      console.error("PDF Parsing error detail:", parseErr);
-      const msg = parseErr instanceof Error ? parseErr.message : "Failed to extract text";
+      const pdfData = await pdfParse(buffer);
+      parsedText = pdfData?.text || "";
+    } catch (parseErr) {
+      console.error("PDF text extraction error:", parseErr);
       return NextResponse.json(
-        { error: `Could not parse PDF: ${msg}` },
-        { status: 422 }
+        { error: "Could not read text from PDF. Ensure the file contains selectable text and is not an image scan." },
+        { status: 400 }
       );
     }
 
-    // 2. Upload file to Supabase Storage 'resumes' bucket
-    const fileName = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const { error: storageError } = await supabase.storage
-      .from("resumes")
-      .upload(fileName, buffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-
-    if (storageError) {
+    if (!parsedText.trim()) {
       return NextResponse.json(
-        { error: `Storage upload failed: ${storageError.message}` },
-        { status: 500 }
+        { error: "PDF has no parseable text. Please upload a standard text PDF resume." },
+        { status: 400 }
       );
     }
 
-    // 3. Save Resume Record in Database
-    const { data: resumeRecord, error: dbError } = await supabase
+    // 2. Clear old resume data (1-resume rule)
+    await supabase.from("resumes").delete().eq("user_id", user.id);
+    await supabase.from("resume_skills").delete().eq("user_id", user.id);
+
+    // 3. Insert record for new resume
+    const { data: resumeRecord, error: resumeInsertErr } = await supabase
       .from("resumes")
       .insert({
         user_id: user.id,
-        file_url: fileName,
         file_name: file.name,
-        parsed_text: parsedText,
+        raw_text: parsedText.slice(0, 100000),
       })
-      .select()
+      .select("id")
       .single();
 
-    if (dbError) {
-      return NextResponse.json({ error: dbError.message }, { status: 500 });
+    if (resumeInsertErr || !resumeRecord) {
+      throw new Error(resumeInsertErr?.message || "Failed to save resume record");
+    }
+
+    // 4. Extract structured skills with Gemini
+    const extracted: ExtractedSkill[] = await extractSkills(parsedText);
+
+    if (extracted.length > 0) {
+      const skillsToInsert = extracted.map((s: ExtractedSkill) => ({
+        user_id: user.id,
+        resume_id: resumeRecord.id,
+        skill_name: s.skill_name,
+        category: s.category,
+        claimed_context: s.claimed_context,
+      }));
+
+      const { error: skillsInsertErr } = await supabase
+        .from("resume_skills")
+        .insert(skillsToInsert);
+
+      if (skillsInsertErr) {
+        console.error("Error inserting resume skills:", skillsInsertErr);
+      }
     }
 
     return NextResponse.json({
       success: true,
-      resumeId: resumeRecord.id,
       fileName: file.name,
-      charactersExtracted: parsedText.length,
+      skillsExtracted: extracted.length,
+      skills: extracted.map((e: ExtractedSkill) => e.skill_name),
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Resume upload & parse error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
   }
 }

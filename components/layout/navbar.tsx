@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 
 interface NavbarProps {
   userEmail?: string | null;
+  onOpenAuth?: (mode: "login" | "candidate" | "recruiter") => void;
 }
 
-export function Navbar({ userEmail }: NavbarProps) {
+export function Navbar({ userEmail, onOpenAuth }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -33,7 +34,7 @@ export function Navbar({ userEmail }: NavbarProps) {
           <Link href="/#evidence" className="hover:text-ink transition-colors">
             Evidence
           </Link>
-          <Link href="/signup?role=recruiter" className="hover:text-ink transition-colors">
+          <Link href={onOpenAuth ? "#signup-recruiter" : "/signup?role=recruiter"} onClick={onOpenAuth ? (event) => { event.preventDefault(); onOpenAuth("recruiter"); } : undefined} className="hover:text-ink transition-colors">
             For Recruiters
           </Link>
         </nav>
@@ -49,12 +50,12 @@ export function Navbar({ userEmail }: NavbarProps) {
             </Link>
           ) : (
             <>
-              <Link href="/login">
+              <Link href={onOpenAuth ? "#login" : "/login"} onClick={onOpenAuth ? (event) => { event.preventDefault(); onOpenAuth("login"); } : undefined}>
                 <Button variant="ghost" size="sm">
                   Log In
                 </Button>
               </Link>
-              <Link href="/signup">
+              <Link href={onOpenAuth ? "#signup" : "/signup"} onClick={onOpenAuth ? (event) => { event.preventDefault(); onOpenAuth("candidate"); } : undefined}>
                 <Button size="sm">
                   Prove your skills
                 </Button>
@@ -92,8 +93,8 @@ export function Navbar({ userEmail }: NavbarProps) {
             Evidence
           </Link>
           <Link
-            href="/signup?role=recruiter"
-            onClick={() => setMobileMenuOpen(false)}
+            href={onOpenAuth ? "#signup-recruiter" : "/signup?role=recruiter"}
+            onClick={onOpenAuth ? (event) => { event.preventDefault(); setMobileMenuOpen(false); onOpenAuth("recruiter"); } : () => setMobileMenuOpen(false)}
             className="block py-1.5 text-sm font-medium text-ink"
           >
             For Recruiters
