@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -11,32 +12,34 @@ import {
   X,
   Share2,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
+import { useDashboard } from "@/context/dashboard-context";
 
-export default async function EvidenceMatrixPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+interface MatchedRepo {
+  name: string;
+  url: string;
+  last_commit_at?: string;
+  has_tests?: boolean;
+}
 
-  const userId = user?.id || "";
+export default function EvidenceMatrixPage() {
+  const { profile, evidenceList, loading } = useDashboard();
 
-  // 1. Fetch Profile & Evidence Records
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
-    .single();
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="flex items-center gap-3 text-muted-text text-sm">
+          <Loader2 className="w-5 h-5 animate-spin text-deep-green" />
+          Loading evidence matrix...
+        </div>
+      </div>
+    );
+  }
 
-  const { data: evidence } = await supabase
-    .from("skill_evidence")
-    .select("*")
-    .eq("user_id", userId)
-    .order("confidence_score", { ascending: false });
-
-  const proven = evidence?.filter((e) => e.status === "proven") || [];
-  const partial = evidence?.filter((e) => e.status === "partial") || [];
-  const claimed = evidence?.filter((e) => e.status === "claimed") || [];
+  const proven = evidenceList.filter((e) => e.status === "proven");
+  const partial = evidenceList.filter((e) => e.status === "partial");
+  const claimed = evidenceList.filter((e) => e.status === "claimed");
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -46,6 +49,7 @@ export default async function EvidenceMatrixPage() {
           <div className="flex items-center gap-2 mb-1">
             <Link
               href="/dashboard"
+              prefetch={false}
               className="text-xs text-muted-text hover:text-ink flex items-center gap-1 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
@@ -114,9 +118,9 @@ export default async function EvidenceMatrixPage() {
         </div>
       </div>
 
-      {/* Evidence Cards by Tier */}
+      {/* Evidence Cards */}
       <div className="space-y-6">
-        {!evidence || evidence.length === 0 ? (
+        {evidenceList.length === 0 ? (
           <div className="p-12 bg-white border border-dashed border-border rounded-xl text-center">
             <ShieldCheck className="w-10 h-10 text-muted-text/40 mx-auto mb-3" />
             <h3 className="text-sm font-bold text-ink">No skills evaluated yet</h3>
@@ -125,14 +129,15 @@ export default async function EvidenceMatrixPage() {
             </p>
             <Link
               href="/dashboard"
+              prefetch={false}
               className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold text-deep-green hover:underline"
             >
               Back to Dashboard
             </Link>
           </div>
         ) : (
-          evidence.map((item) => {
-            const matchedRepos = (item.matched_repos as any[]) || [];
+          evidenceList.map((item) => {
+            const matchedRepos = ((item as { matched_repos?: MatchedRepo[] }).matched_repos || []) as MatchedRepo[];
 
             return (
               <div
@@ -165,9 +170,11 @@ export default async function EvidenceMatrixPage() {
                 </div>
 
                 {/* Evidence Summary Text */}
-                <p className="text-xs text-muted-text leading-relaxed">
-                  {item.evidence_summary}
-                </p>
+                {item.evidence_summary && (
+                  <p className="text-xs text-muted-text leading-relaxed">
+                    {item.evidence_summary}
+                  </p>
+                )}
 
                 {/* Matched Repositories Sub-Table */}
                 {matchedRepos.length > 0 && (
@@ -176,7 +183,7 @@ export default async function EvidenceMatrixPage() {
                       Matched Source Repositories ({matchedRepos.length})
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {matchedRepos.map((repo: any, idx: number) => (
+                      {matchedRepos.map((repo, idx) => (
                         <div
                           key={idx}
                           className="p-3 bg-soft-surface/50 border border-border rounded-lg text-xs flex items-center justify-between gap-3"

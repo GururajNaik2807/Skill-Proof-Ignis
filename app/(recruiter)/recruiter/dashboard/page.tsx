@@ -28,7 +28,7 @@ export default async function RecruiterDashboardPage() {
       github_repositories (id, repo_name, primary_language, has_tests),
       skill_evidence (id, skill_name, status, confidence_score)
     `)
-    .eq("role", "developer")
+    .eq("role", "candidate")
     .order("created_at", { ascending: false });
 
   return (
@@ -77,7 +77,7 @@ export default async function RecruiterDashboardPage() {
             <Users className="w-10 h-10 text-muted-text/50 mx-auto mb-3" />
             <h3 className="text-sm font-bold text-ink">No candidates indexed yet</h3>
             <p className="text-xs text-muted-text max-w-sm mx-auto mt-1">
-              Once developers sign up and complete their GitHub repository scans, their audited profiles will appear here.
+              Once candidates sign up and complete their GitHub repository scans, their audited profiles will appear here.
             </p>
           </div>
         ) : (

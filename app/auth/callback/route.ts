@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { getUserRole, workspaceForRole } from "@/lib/auth/roles";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -10,7 +11,12 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      if (next === "/auth/reset-password") {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      const role = user ? await getUserRole(supabase, user) : null;
+      return NextResponse.redirect(`${origin}${role ? workspaceForRole(role) : next}`);
     }
   }
 

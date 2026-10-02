@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Layers,
@@ -12,58 +12,26 @@ import {
   Circle,
   AlertCircle,
   Loader2,
-  FolderGit2,
-  ShieldCheck,
   Target,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useDashboard } from "@/context/dashboard-context";
 
 interface MicroTask {
   id: string;
   skill_name: string;
   title: string;
-  description: string;
+  description?: string;
   difficulty: "beginner" | "intermediate" | "advanced";
   estimated_time: string;
-  deliverables: string[];
-  verification_target: string;
+  deliverables?: string[];
+  verification_target?: string;
   status: "todo" | "in_progress" | "completed";
 }
 
 export default function MicroTasksPage() {
-  const supabase = createClient();
-
-  const [tasks, setTasks] = useState<MicroTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { tasks, loading, refreshData, updateTaskLocally } = useDashboard();
   const [isGenerating, setIsGenerating] = useState(false);
   const [notice, setNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
-
-  const loadTasks = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("micro_tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setTasks(data || []);
-    } catch (err) {
-      console.error("Failed to load tasks:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTasks();
-  }, []);
 
   const handleGenerateTasks = async () => {
     setIsGenerating(true);
@@ -75,9 +43,9 @@ export default function MicroTasksPage() {
 
       setNotice({
         type: "success",
-        message: `Generated ${data.tasksGenerated} tailored coding tasks to convert your unverified skills into proven code.`,
+        message: `Generated ${data.tasksGenerated || 0} tailored coding tasks to convert your unverified skills into proven code.`,
       });
-      await loadTasks();
+      await refreshData();
     } catch (err: unknown) {
       setNotice({
         type: "error",
@@ -96,10 +64,8 @@ export default function MicroTasksPage() {
         ? "completed"
         : "todo";
 
-    // Optimistic UI update
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
-    );
+    // Instant optimistic update across all views
+    updateTaskLocally(taskId, nextStatus);
 
     try {
       const res = await fetch("/api/tasks/update", {
@@ -109,8 +75,8 @@ export default function MicroTasksPage() {
       });
       if (!res.ok) throw new Error("Failed to update status");
     } catch (err) {
-      console.error(err);
-      await loadTasks(); // Revert on error
+      console.error("Failed to update status:", err);
+      await refreshData(); // Revert on error
     }
   };
 
@@ -134,6 +100,7 @@ export default function MicroTasksPage() {
         <div>
           <Link
             href="/dashboard"
+            prefetch={false}
             className="text-xs text-muted-text hover:text-ink flex items-center gap-1 mb-2 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
@@ -203,6 +170,7 @@ export default function MicroTasksPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/matrix"
+            prefetch={false}
             className="px-3.5 py-1.5 border border-border rounded-lg text-xs font-medium hover:bg-soft-surface transition-colors"
           >
             View Evidence Matrix
@@ -282,9 +250,11 @@ export default function MicroTasksPage() {
               </div>
 
               {/* Task Description */}
-              <p className="text-xs text-muted-text leading-relaxed">
-                {task.description}
-              </p>
+              {task.description && (
+                <p className="text-xs text-muted-text leading-relaxed">
+                  {task.description}
+                </p>
+              )}
 
               {/* Deliverables List */}
               {task.deliverables && task.deliverables.length > 0 && (
@@ -304,12 +274,14 @@ export default function MicroTasksPage() {
               )}
 
               {/* Verification Signal Target */}
-              <div className="p-3 bg-soft-surface/50 border border-border rounded-lg flex items-center gap-2 text-xs">
-                <Target className="w-4 h-4 text-deep-green shrink-0" />
-                <span className="text-muted-text">
-                  <strong className="text-ink">Verification Signal:</strong> {task.verification_target}
-                </span>
-              </div>
+              {task.verification_target && (
+                <div className="p-3 bg-soft-surface/50 border border-border rounded-lg flex items-center gap-2 text-xs">
+                  <Target className="w-4 h-4 text-deep-green shrink-0" />
+                  <span className="text-muted-text">
+                    <strong className="text-ink">Verification Signal:</strong> {task.verification_target}
+                  </span>
+                </div>
+              )}
             </div>
           ))
         )}

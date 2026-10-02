@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -27,6 +27,11 @@ import {
   Circle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  getCachedDashboard,
+  setCachedDashboard,
+  clearDashboardCache,
+} from "@/lib/cache/dashboard-cache";
 
 interface Repository {
   id: string;
@@ -67,6 +72,8 @@ interface Profile {
   github_username: string | null;
   target_role: string | null;
   share_slug: string | null;
+  last_scan_at: string | null;
+  last_parse_at: string | null;
 }
 
 export default function DashboardPage() {
@@ -79,65 +86,94 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<MicroTask[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Search & filter state for repositories
   const [repoSearch, setRepoSearch] = useState("");
   const [filterWithTests, setFilterWithTests] = useState(false);
 
-  // Status and notification banners
   const [notice, setNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [isScanningRepos, setIsScanningRepos] = useState(false);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
 
-  // Load all initial data from Supabase
-  const loadDashboardData = async () => {
+  const hasFetched = useRef(false);
+
+  // Core loader: Checks localStorage first unless forceRefresh is true
+  const loadDashboardData = async (forceRefresh = false) => {
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
       if (!user) return;
 
-      // 1. Fetch Profile
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      if (prof) setProfile(prof);
+      // 1. Read from localStorage cache if not forced
+      if (!forceRefresh) {
+        const cached = getCachedDashboard(user.id);
+        if (cached) {
+          setProfile(cached.profile as Profile);
+          setRepositories(cached.repositories as Repository[]);
+          setResumeSkills(cached.resumeSkills as ResumeSkill[]);
+          setEvidenceList(cached.evidenceList as SkillEvidence[]);
+          setTasks(cached.tasks as MicroTask[]);
+          setLoading(false);
+          return; // Zero network requests
+        }
+      }
 
-      // 2. Fetch Repositories
-      const { data: repos } = await supabase
-        .from("github_repositories")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("last_commit_at", { ascending: false });
-      if (repos) setRepositories(repos);
+      // 2. Fetch fresh data from Supabase in a single parallel batch
+      const [
+        { data: prof },
+        { data: repos },
+        { data: skills },
+        { data: ev },
+        { data: taskData },
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, github_username, target_role, share_slug, last_scan_at, last_parse_at")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("github_repositories")
+          .select("id, repo_name, repo_url, primary_language, has_tests, has_docker, last_commit_at")
+          .eq("user_id", user.id)
+          .order("last_commit_at", { ascending: false }),
+        supabase
+          .from("resume_skills")
+          .select("id, skill_name, claimed_context")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("skill_evidence")
+          .select("id, skill_name, status, confidence_score, evidence_summary")
+          .eq("user_id", user.id)
+          .order("confidence_score", { ascending: false }),
+        supabase
+          .from("micro_tasks")
+          .select("id, skill_name, title, difficulty, estimated_time, status")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(3),
+      ]);
 
-      // 3. Fetch Resume Skills
-      const { data: skills } = await supabase
-        .from("resume_skills")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (skills) setResumeSkills(skills);
+      const newProfile = prof ? (prof as Profile) : null;
+      const newRepos = repos ? (repos as Repository[]) : [];
+      const newSkills = skills ? (skills as ResumeSkill[]) : [];
+      const newEvidence = ev ? (ev as SkillEvidence[]) : [];
+      const newTasks = taskData ? (taskData as MicroTask[]) : [];
 
-      // 4. Fetch Evaluated Evidence
-      const { data: ev } = await supabase
-        .from("skill_evidence")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("confidence_score", { ascending: false });
-      if (ev) setEvidenceList(ev);
+      setProfile(newProfile);
+      setRepositories(newRepos);
+      setResumeSkills(newSkills);
+      setEvidenceList(newEvidence);
+      setTasks(newTasks);
 
-      // 5. Fetch Active Micro-Tasks
-      const { data: taskData } = await supabase
-        .from("micro_tasks")
-        .select("id, skill_name, title, difficulty, estimated_time, status")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(3);
-      if (taskData) setTasks(taskData as MicroTask[]);
+      // 3. Save to localStorage cache for instant return on navigation
+      setCachedDashboard(user.id, {
+        profile: newProfile,
+        repositories: newRepos,
+        resumeSkills: newSkills,
+        evidenceList: newEvidence,
+        tasks: newTasks,
+      });
     } catch (err: unknown) {
       console.error("Failed to load dashboard data:", err);
     } finally {
@@ -146,11 +182,19 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    loadDashboardData();
+    if (!hasFetched.current) {
+      loadDashboardData(false);
+      hasFetched.current = true;
+    }
   }, []);
 
-  // Action: Trigger GitHub Scan
+  // Action: Re-scan Trigger (Explicit cache invalidation)
   const handleScanRepos = async () => {
+    if (profile?.last_scan_at && Date.now() - new Date(profile.last_scan_at).getTime() < 60000) {
+      setNotice({ type: "error", message: "Please wait 60 seconds before scanning again to avoid API limits." });
+      return;
+    }
+
     setIsScanningRepos(true);
     setNotice(null);
     try {
@@ -158,46 +202,45 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "GitHub scan failed");
 
-      setNotice({
-        type: "success",
-        message: `Successfully indexed ${data.scannedCount || 0} public repositories from GitHub.`,
-      });
-      await loadDashboardData();
+      if (profile?.id) {
+        clearDashboardCache(profile.id);
+      }
+      setNotice({ type: "success", message: `Indexed ${data.scannedCount || 0} public repositories.` });
+      await loadDashboardData(true); // Forced network fetch
     } catch (err: unknown) {
-      setNotice({
-        type: "error",
-        message: err instanceof Error ? err.message : "GitHub scan failed",
-      });
+      setNotice({ type: "error", message: err instanceof Error ? err.message : "GitHub scan failed" });
     } finally {
       setIsScanningRepos(false);
     }
   };
 
-  // Action: Trigger Gemini Resume Extraction
+  // Action: Re-parse Trigger (Explicit cache invalidation)
   const handleParseResume = async () => {
+    if (profile?.last_parse_at && Date.now() - new Date(profile.last_parse_at).getTime() < 60000) {
+      setNotice({ type: "error", message: "Please wait 60 seconds before parsing again." });
+      return;
+    }
+
     setIsParsingResume(true);
     setNotice(null);
     try {
       const res = await fetch("/api/resume/parse", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to parse skills with Gemini");
+      if (!res.ok) throw new Error(data.error || "Failed to parse skills");
 
-      setNotice({
-        type: "success",
-        message: `Extracted ${data.extractedCount || 0} technical proficiencies via Gemini.`,
-      });
-      await loadDashboardData();
+      if (profile?.id) {
+        clearDashboardCache(profile.id);
+      }
+      setNotice({ type: "success", message: `Extracted ${data.extractedCount || 0} skills via Gemini.` });
+      await loadDashboardData(true); // Forced network fetch
     } catch (err: unknown) {
-      setNotice({
-        type: "error",
-        message: err instanceof Error ? err.message : "Skill extraction failed",
-      });
+      setNotice({ type: "error", message: err instanceof Error ? err.message : "Skill extraction failed" });
     } finally {
       setIsParsingResume(false);
     }
   };
 
-  // Action: Trigger Deterministic Evidence Evaluation
+  // Action: Evidence Evaluate Trigger (Explicit cache invalidation)
   const handleEvaluateEvidence = async () => {
     setIsEvaluating(true);
     setNotice(null);
@@ -206,22 +249,19 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Evaluation failed");
 
-      setNotice({
-        type: "success",
-        message: `Audit complete: ${data.provenTotal} Proven, ${data.partialTotal} Partial, and ${data.claimedTotal} Claimed skills.`,
-      });
-      await loadDashboardData();
+      if (profile?.id) {
+        clearDashboardCache(profile.id);
+      }
+      setNotice({ type: "success", message: `Audit complete: ${data.provenTotal} Proven, ${data.partialTotal} Partial.` });
+      await loadDashboardData(true); // Forced network fetch
     } catch (err: unknown) {
-      setNotice({
-        type: "error",
-        message: err instanceof Error ? err.message : "Evidence evaluation failed",
-      });
+      setNotice({ type: "error", message: err instanceof Error ? err.message : "Evidence evaluation failed" });
     } finally {
       setIsEvaluating(false);
     }
   };
 
-  // Action: Quick Toggle Micro-Task Status
+  // Action: Local State Optimistic Update + Cache Sync
   const handleToggleTaskStatus = async (taskId: string, currentStatus: MicroTask["status"]) => {
     const nextStatus =
       currentStatus === "todo"
@@ -230,9 +270,19 @@ export default function DashboardPage() {
         ? "completed"
         : "todo";
 
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
-    );
+    const updatedTasks = tasks.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t));
+    setTasks(updatedTasks);
+
+    // Sync updated task immediately to localStorage so switching tabs retains it
+    if (profile?.id) {
+      setCachedDashboard(profile.id, {
+        profile,
+        repositories,
+        resumeSkills,
+        evidenceList,
+        tasks: updatedTasks,
+      });
+    }
 
     try {
       const res = await fetch("/api/tasks/update", {
@@ -243,11 +293,10 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Status update failed");
     } catch (err) {
       console.error(err);
-      await loadDashboardData();
+      await loadDashboardData(true); // Revert on failure
     }
   };
 
-  // Dynamic Metrics
   const provenCount = evidenceList.filter((e) => e.status === "proven").length;
   const partialCount = evidenceList.filter((e) => e.status === "partial").length;
   const claimedCount =
@@ -255,7 +304,6 @@ export default function DashboardPage() {
       ? evidenceList.filter((e) => e.status === "claimed").length
       : resumeSkills.length;
 
-  // Filtered repositories
   const filteredRepos = repositories.filter((repo) => {
     const matchesSearch =
       repo.repo_name.toLowerCase().includes(repoSearch.toLowerCase()) ||
@@ -277,7 +325,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* 1. Header Banner */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
         <div>
           <div className="flex items-center gap-2">
@@ -290,19 +338,15 @@ export default function DashboardPage() {
           </div>
           <p className="text-xs sm:text-sm text-muted-text mt-1">
             Auditing codebase signals for{" "}
-            <span className="font-semibold text-ink">
-              {profile?.full_name || "Developer"}
-            </span>
+            <span className="font-semibold text-ink">{profile?.full_name || "Candidate"}</span>
             {profile?.github_username && (
               <span className="ml-2 font-mono text-xs bg-soft-surface px-2 py-0.5 rounded border border-border inline-flex items-center gap-1">
-                <GitBranch className="w-3 h-3 text-deep-green" />
-                @{profile.github_username}
+                <GitBranch className="w-3 h-3 text-deep-green" /> @{profile.github_username}
               </span>
             )}
           </p>
         </div>
 
-        {/* Global Action Strip */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
@@ -310,30 +354,23 @@ export default function DashboardPage() {
             disabled={isEvaluating}
             className="px-3.5 py-2 bg-deep-green text-white text-xs font-semibold rounded-lg hover:bg-deep-green/90 transition-colors flex items-center gap-1.5 shadow-subtle cursor-pointer disabled:opacity-50"
           >
-            {isEvaluating ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5" />
-            )}
+            {isEvaluating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             Evaluate Evidence
           </button>
-
           <Link
             href="/jobs"
+            prefetch={false}
             className="px-3.5 py-2 border border-border bg-white text-xs font-semibold rounded-lg hover:bg-soft-surface transition-colors flex items-center gap-1.5 shadow-subtle"
           >
-            <Briefcase className="w-3.5 h-3.5 text-deep-green" />
-            Job Match
+            <Briefcase className="w-3.5 h-3.5 text-deep-green" /> Job Match
           </Link>
-
           <Link
             href="/matrix"
+            prefetch={false}
             className="px-3.5 py-2 border border-border bg-white text-xs font-semibold rounded-lg hover:bg-soft-surface transition-colors flex items-center gap-1.5 shadow-subtle"
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-deep-green" />
-            Evidence Matrix
+            <ShieldCheck className="w-3.5 h-3.5 text-deep-green" /> Evidence Matrix
           </Link>
-
           {profile?.share_slug && (
             <Link
               href={`/v/${profile.share_slug}`}
@@ -344,17 +381,9 @@ export default function DashboardPage() {
               <Share2 className="w-4 h-4 text-deep-green" />
             </Link>
           )}
-
-          <Link
-            href="/onboarding"
-            className="px-3.5 py-2 border border-border text-xs font-semibold rounded-lg hover:bg-soft-surface transition-colors"
-          >
-            Re-upload
-          </Link>
         </div>
       </div>
 
-      {/* Global Status Banner */}
       {notice && (
         <div
           role="status"
@@ -365,119 +394,84 @@ export default function DashboardPage() {
           }`}
         >
           <div className="flex items-center gap-2.5">
-            {notice.type === "success" ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 shrink-0" />
-            )}
+            {notice.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
             <span className="font-medium">{notice.message}</span>
           </div>
-          <button
-            onClick={() => setNotice(null)}
-            className="font-semibold hover:underline text-[11px] ml-4 cursor-pointer"
-          >
+          <button onClick={() => setNotice(null)} className="font-semibold hover:underline text-[11px] ml-4 cursor-pointer">
             Dismiss
           </button>
         </div>
       )}
 
-      {/* 2. Verification Stat Overview Cards */}
+      {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Proven Card */}
         <div className="p-5 bg-white border border-border rounded-xl shadow-subtle flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-status-proven uppercase tracking-wider">
-              Proven Skills
-            </span>
+            <span className="text-xs font-bold text-status-proven uppercase tracking-wider">Proven Skills</span>
             <span className="w-6 h-6 rounded-full bg-status-proven/10 flex items-center justify-center text-status-proven">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </span>
           </div>
           <div>
             <p className="text-3xl font-bold font-heading text-ink">{provenCount}</p>
-            <p className="text-xs text-muted-text mt-1">
-              Active commits + unit test suites verified
-            </p>
+            <p className="text-xs text-muted-text mt-1">Active commits + unit test suites verified</p>
           </div>
         </div>
 
-        {/* Partial Card */}
         <div className="p-5 bg-white border border-border rounded-xl shadow-subtle flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-status-partial uppercase tracking-wider">
-              Partial Evidence
-            </span>
+            <span className="text-xs font-bold text-status-partial uppercase tracking-wider">Partial Evidence</span>
             <span className="w-6 h-6 rounded-full bg-status-partial/10 flex items-center justify-center text-status-partial">
               <Clock className="w-3.5 h-3.5" />
             </span>
           </div>
           <div>
             <p className="text-3xl font-bold font-heading text-ink">{partialCount}</p>
-            <p className="text-xs text-muted-text mt-1">
-              Config-only or inactive &gt; 12 months
-            </p>
+            <p className="text-xs text-muted-text mt-1">Config-only or inactive &gt; 12 months</p>
           </div>
         </div>
 
-        {/* Claimed-Only Card */}
         <div className="p-5 bg-white border border-border rounded-xl shadow-subtle flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-status-claimed uppercase tracking-wider">
-              Claimed-Only
-            </span>
+            <span className="text-xs font-bold text-status-claimed uppercase tracking-wider">Claimed-Only</span>
             <span className="w-6 h-6 rounded-full bg-status-claimed/10 flex items-center justify-center text-status-claimed">
               <AlertTriangle className="w-3.5 h-3.5" />
             </span>
           </div>
           <div>
             <p className="text-3xl font-bold font-heading text-ink">{claimedCount}</p>
-            <p className="text-xs text-muted-text mt-1">
-              On resume with 0 matching public code
-            </p>
+            <p className="text-xs text-muted-text mt-1">On resume with 0 matching public code</p>
           </div>
         </div>
       </div>
 
-      {/* 3. Extracted Resume Claims Section */}
+      {/* Resume Claims */}
       <div className="bg-white border border-border rounded-xl p-6 shadow-subtle space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-bold font-heading flex items-center gap-2 text-ink">
-              <FileText className="w-4 h-4 text-deep-green" />
-              Extracted Resume Claims ({resumeSkills.length})
+              <FileText className="w-4 h-4 text-deep-green" /> Extracted Resume Claims ({resumeSkills.length})
             </h2>
-            <p className="text-xs text-muted-text mt-0.5">
-              Proficiencies extracted from your uploaded resume by Gemini for GitHub verification.
-            </p>
+            <p className="text-xs text-muted-text mt-0.5">Proficiencies extracted from your uploaded resume by Gemini.</p>
           </div>
-
           <button
             type="button"
             onClick={handleParseResume}
             disabled={isParsingResume}
             className="px-3 py-1.5 bg-soft-surface text-ink text-xs font-semibold rounded-lg border border-border hover:bg-border/40 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            {isParsingResume ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5 text-deep-green" />
-            )}
+            {isParsingResume ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-deep-green" />}
             Re-parse with Gemini
           </button>
         </div>
-
         {resumeSkills.length === 0 ? (
           <div className="p-6 border border-dashed border-border rounded-lg text-center bg-warm-ivory/20">
-            <p className="text-xs text-muted-text">
-              No technical skills extracted yet. Upload a PDF resume in onboarding or click &ldquo;Re-parse with Gemini&rdquo;.
-            </p>
+            <p className="text-xs text-muted-text">No technical skills extracted yet. Upload a PDF resume.</p>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2 pt-1">
             {resumeSkills.map((skill) => {
-              const ev = evidenceList.find(
-                (e) => e.skill_name.toLowerCase() === skill.skill_name.toLowerCase()
-              );
+              const ev = evidenceList.find((e) => e.skill_name.toLowerCase() === skill.skill_name.toLowerCase());
               return (
                 <div
                   key={skill.id}
@@ -504,36 +498,26 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* 4. Active Micro-Tasks Quick Widget */}
+      {/* Micro-Tasks */}
       {tasks.length > 0 && (
         <div className="bg-white border border-border rounded-xl p-6 shadow-subtle space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold font-heading flex items-center gap-2 text-ink">
-                <Layers className="w-4 h-4 text-deep-green" />
-                Active Micro-Tasks ({tasks.length})
+                <Layers className="w-4 h-4 text-deep-green" /> Active Micro-Tasks ({tasks.length})
               </h2>
-              <p className="text-xs text-muted-text mt-0.5">
-                Targeted 1–2 hour coding tasks to flip unverified claims into proven GitHub commits[cite: 1, 2].
-              </p>
+              <p className="text-xs text-muted-text mt-0.5">Targeted coding tasks to flip unverified claims into proven commits[cite: 1, 2].</p>
             </div>
-
-            <Link
-              href="/tasks"
-              className="text-xs font-semibold text-deep-green hover:underline flex items-center gap-1"
-            >
+            <Link href="/tasks" prefetch={false} className="text-xs font-semibold text-deep-green hover:underline flex items-center gap-1">
               View All Tasks <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
             {tasks.map((task) => (
               <div
                 key={task.id}
                 className={`p-3.5 rounded-lg border flex flex-col justify-between gap-3 text-xs transition-colors ${
-                  task.status === "completed"
-                    ? "bg-status-proven/5 border-status-proven/30"
-                    : "bg-soft-surface/40 border-border"
+                  task.status === "completed" ? "bg-status-proven/5 border-status-proven/30" : "bg-soft-surface/40 border-border"
                 }`}
               >
                 <div>
@@ -541,15 +525,12 @@ export default function DashboardPage() {
                     <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded bg-white border border-border text-ink">
                       {task.skill_name}
                     </span>
-                    <span className="text-[10px] text-muted-text capitalize">
-                      {task.estimated_time}
-                    </span>
+                    <span className="text-[10px] text-muted-text capitalize">{task.estimated_time}</span>
                   </div>
                   <h4 className={`font-semibold ${task.status === "completed" ? "line-through text-muted-text" : "text-ink"}`}>
                     {task.title}
                   </h4>
                 </div>
-
                 <div className="flex items-center justify-between pt-2 border-t border-border/60">
                   <button
                     type="button"
@@ -570,9 +551,7 @@ export default function DashboardPage() {
                       </>
                     )}
                   </button>
-                  <span className="text-[10px] text-muted-text capitalize">
-                    {task.difficulty}
-                  </span>
+                  <span className="text-[10px] text-muted-text capitalize">{task.difficulty}</span>
                 </div>
               </div>
             ))}
@@ -580,35 +559,28 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 5. Audited GitHub Repositories Section */}
+      {/* Scanned Repos */}
       <div className="bg-white border border-border rounded-xl p-6 shadow-subtle space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-bold font-heading flex items-center gap-2 text-ink">
-              <FolderGit2 className="w-4 h-4 text-deep-green" />
-              Audited GitHub Repositories ({repositories.length})
+              <FolderGit2 className="w-4 h-4 text-deep-green" /> Audited GitHub Repositories ({repositories.length})
             </h2>
             <p className="text-xs text-muted-text mt-0.5">
-              Source code trees, package manifests, and test directories scanned for evidence classification.
+              Source code trees, package manifests, and test directories scanned for evidence classification[cite: 8].
             </p>
           </div>
-
           <button
             type="button"
             onClick={handleScanRepos}
             disabled={isScanningRepos}
             className="px-3.5 py-1.5 bg-deep-green text-white text-xs font-semibold rounded-lg hover:bg-deep-green/90 transition-colors flex items-center gap-1.5 cursor-pointer shadow-subtle disabled:opacity-50"
           >
-            {isScanningRepos ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3.5 h-3.5" />
-            )}
+            {isScanningRepos ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             Re-scan Repositories
           </button>
         </div>
 
-        {/* Search & Filter Bar */}
         {repositories.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <div className="relative flex-1 w-full">
@@ -630,8 +602,7 @@ export default function DashboardPage() {
                   : "bg-white border-border text-muted-text hover:text-ink"
               }`}
             >
-              <Filter className="w-3 h-3" />
-              Only Tested Repos
+              <Filter className="w-3 h-3" /> Only Tested Repos
             </button>
           </div>
         )}
@@ -641,10 +612,11 @@ export default function DashboardPage() {
             <GitBranch className="w-8 h-8 text-muted-text/60 mx-auto mb-2" />
             <p className="text-sm font-semibold text-ink">No repositories indexed yet</p>
             <p className="text-xs text-muted-text mt-1 max-w-sm mx-auto">
-              Confirm your GitHub username in onboarding or click &ldquo;Re-scan Repositories&rdquo; to fetch your public repositories.
+              Confirm your GitHub username in onboarding or click &ldquo;Re-scan Repositories&rdquo;.
             </p>
             <Link
               href="/onboarding"
+              prefetch={false}
               className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-deep-green hover:underline"
             >
               Configure profile in onboarding <ArrowRight className="w-3.5 h-3.5" />
@@ -718,38 +690,6 @@ export default function DashboardPage() {
             </table>
           </div>
         )}
-      </div>
-
-      {/* 6. Micro-Task Conversion Banner */}
-      <div className="p-5 bg-white border border-border rounded-xl shadow-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-lg bg-deep-green/10 flex items-center justify-center text-deep-green shrink-0 mt-0.5">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-ink">
-              Turn Unverified Claims into Proven Evidence
-            </h3>
-            <p className="text-xs text-muted-text mt-0.5 max-w-xl">
-              SkillProof suggests targeted 1–2 hour coding micro-tasks (like adding PyTest test suites or writing Dockerfiles) to turn your unproven resume skills into verified GitHub commits[cite: 1, 2].
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Link
-            href="/jobs"
-            className="px-3.5 py-2 border border-border text-xs font-semibold rounded-lg hover:bg-soft-surface transition-colors flex items-center gap-1.5"
-          >
-            Match Job <Briefcase className="w-3.5 h-3.5 text-deep-green" />
-          </Link>
-          <Link
-            href="/tasks"
-            className="px-4 py-2 bg-deep-green text-white text-xs font-semibold rounded-lg hover:bg-deep-green/90 transition-colors flex items-center gap-1.5 shadow-subtle"
-          >
-            Generate Tasks <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
       </div>
     </div>
   );

@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import { workspaceForRole, normalizeRole } from "@/lib/auth/roles";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [noticeMsg, setNoticeMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -18,8 +20,9 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
+    setNoticeMsg("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -28,9 +31,43 @@ export default function LoginPage() {
       setErrorMsg(error.message);
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      const role = normalizeRole(data.user?.user_metadata?.role);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      const resolvedRole = normalizeRole(profile?.role) ?? role;
+
+      if (!resolvedRole) {
+        setErrorMsg("Your account is missing a valid SkillProof role. Please contact support.");
+        setLoading(false);
+        return;
+      }
+
+      router.push(workspaceForRole(resolvedRole));
       router.refresh();
     }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email.trim()) {
+      setErrorMsg("Enter your email address first.");
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
+      setNoticeMsg("Check your email for a password reset link.");
+    }
+    setLoading(false);
   };
 
   return (
@@ -61,6 +98,12 @@ export default function LoginPage() {
             </div>
           )}
 
+          {noticeMsg && (
+            <div className="mb-5 p-3 rounded-lg bg-status-proven/10 border border-status-proven/20 text-status-proven text-sm">
+              {noticeMsg}
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
@@ -81,6 +124,14 @@ export default function LoginPage() {
                 <label className="block text-xs font-semibold text-ink uppercase tracking-wider">
                   Password
                 </label>
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={loading}
+                  className="text-[11px] font-medium text-deep-green hover:underline disabled:opacity-50"
+                >
+                  Forgot password?
+                </button>
               </div>
               <input
                 type="password"

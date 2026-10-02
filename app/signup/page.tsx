@@ -20,7 +20,7 @@ import {
 } from "@/components/auth/password-requirements";
 
 export default function SignupPage() {
-  const [role, setRole] = useState<"developer" | "employer">("developer");
+  const [role, setRole] = useState<"candidate" | "recruiter">("candidate");
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
@@ -41,8 +41,8 @@ export default function SignupPage() {
       return;
     }
 
-    if (role === "employer" && !companyName.trim()) {
-      setErrorMsg("Company or organization name is required for employers.");
+    if (role === "recruiter" && !companyName.trim()) {
+      setErrorMsg("Company or organization name is required for recruiters.");
       return;
     }
 
@@ -57,8 +57,8 @@ export default function SignupPage() {
         data: {
           full_name: fullName.trim(),
           role: role,
-          company_name: role === "employer" ? companyName.trim() : null,
-          company_website: role === "employer" ? companyWebsite.trim() : null,
+          company_name: role === "recruiter" ? companyName.trim() : null,
+          company_website: role === "recruiter" ? companyWebsite.trim() : null,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
@@ -69,7 +69,7 @@ export default function SignupPage() {
       setLoading(false);
     } else {
       if (data?.session) {
-        if (role === "employer") {
+        if (role === "recruiter") {
           router.push("/recruiter/dashboard");
         } else {
           router.push("/onboarding");
@@ -104,7 +104,7 @@ export default function SignupPage() {
               Create an account
             </h1>
             <p className="text-xs text-muted-text">
-              Select your role to configure your personalized verification workspace.
+              How will you use SkillProof?
             </p>
           </div>
 
@@ -113,32 +113,32 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={() => {
-                setRole("developer");
+                setRole("candidate");
                 setErrorMsg("");
               }}
               className={`flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all ${
-                role === "developer"
+                role === "candidate"
                   ? "bg-white text-ink shadow-subtle border border-border/60"
                   : "text-muted-text hover:text-ink"
               }`}
             >
               <Code2 className="w-4 h-4 text-deep-green" />
-              Developer
+              I&apos;m proving my own skills
             </button>
             <button
               type="button"
               onClick={() => {
-                setRole("employer");
+                setRole("recruiter");
                 setErrorMsg("");
               }}
               className={`flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all ${
-                role === "employer"
+                role === "recruiter"
                   ? "bg-white text-ink shadow-subtle border border-border/60"
                   : "text-muted-text hover:text-ink"
               }`}
             >
               <Building2 className="w-4 h-4 text-deep-green" />
-              Employer
+              I&apos;m hiring / evaluating candidates
             </button>
           </div>
 
@@ -158,15 +158,15 @@ export default function SignupPage() {
 
           <form onSubmit={handleSignup} className="space-y-4">
             <Input
-              label={role === "developer" ? "Full Name" : "Hiring Manager / Recruiter Name"}
+              label={role === "candidate" ? "Full Name" : "Hiring Manager / Recruiter Name"}
               type="text"
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder={role === "developer" ? "e.g. Alex Morgan" : "e.g. Sarah Jenkins"}
+              placeholder={role === "candidate" ? "e.g. Alex Morgan" : "e.g. Sarah Jenkins"}
             />
 
-            {role === "employer" && (
+            {role === "recruiter" && (
               <>
                 <Input
                   label="Company / Team Name"
@@ -207,7 +207,7 @@ export default function SignupPage() {
             {password.length > 0 && <PasswordRequirements value={password} />}
 
             <Button type="submit" loading={loading} className="w-full mt-2">
-              {role === "developer" ? "Create Candidate Account" : "Access Recruiter Portal"}
+              {role === "candidate" ? "Create Candidate Account" : "Access Recruiter Portal"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </form>
