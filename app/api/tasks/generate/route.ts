@@ -1,93 +1,145 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 
 export async function POST() {
   try {
     const supabase = await createClient();
     const {
       data: { user },
-      error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 1. Fetch unverified / claimed skills or evidence gaps
-    const [skillsRes, evidenceRes] = await Promise.all([
-      supabase
-        .from("resume_skills")
-        .select("skill_name, claimed_context")
-        .eq("user_id", user.id),
-      supabase
-        .from("skill_evidence")
-        .select("skill_name, status")
-        .eq("user_id", user.id),
-    ]);
+    // 1. Strict Server-Side Guardrail: Check active (uncompleted) task count
+    const { data: existingTasks, error: taskQueryError } = await supabase
+      .from("micro_tasks")
+      .select("id, status, skill_name")
+      .eq("user_id", user.id);
 
-    const claimedSkills = skillsRes.data || [];
-    const evidenceList = evidenceRes.data || [];
+    if (taskQueryError) {
+      return NextResponse.json({ error: taskQueryError.message }, { status: 500 });
+    }
 
-    // Prioritize skills that are claimed-only or partial
-    const provenSet = new Set(
-      evidenceList
-        .filter((e) => e.status === "proven")
-        .map((e) => e.skill_name.toLowerCase())
+    const activeTasks = (existingTasks || []).filter(
+      (t) => t.status === "todo" || t.status === "in_progress"
     );
 
-    const targetSkills = claimedSkills.filter(
-      (s) => !provenSet.has(s.skill_name.toLowerCase())
-    );
-
-    const skillsToTarget = targetSkills.length > 0 ? targetSkills : claimedSkills;
-
-    if (skillsToTarget.length === 0) {
+    if (activeTasks.length >= 2) {
       return NextResponse.json(
-        { error: "No skills found. Upload a resume first to extract skills." },
+        {
+          error: "You have 2 pending micro-tasks. Complete or submit them to unlock new challenges.",
+          activeCount: activeTasks.length,
+        },
         { status: 400 }
       );
     }
 
-    // Generate up to 3 micro-tasks
-    const chosen = skillsToTarget.slice(0, 3);
+    // 2. Query Candidate's Unverified Claims & Partial Skills
+    const [{ data: resumeSkills }, { data: evidenceList }] = await Promise.all([
+      supabase.from("resume_skills").select("skill_name, claimed_context").eq("user_id", user.id),
+      supabase.from("skill_evidence").select("skill_name, status, evidence_summary").eq("user_id", user.id),
+    ]);
 
-    const newTasks = chosen.map((item) => {
-      const evidenceSummary = `Unit tests and modular architecture artifact for ${item.skill_name}`;
-      const deliverablesList = [
-        `Configured ${item.skill_name} test runner with passing unit assertions`,
-        `Commit demonstrating modular architecture in a public repo`,
-      ];
+    const activeSkillNames = new Set(activeTasks.map((t) => t.skill_name.toLowerCase()));
 
-      return {
-        user_id: user.id,
-        skill_name: item.skill_name,
-        title: `Implement ${item.skill_name} Test Suite & Integration`,
-        description: `Build an isolated module demonstrating production patterns for ${item.skill_name}, including unit tests and automated CI signals.`,
-        difficulty: "intermediate",
-        estimated_time: "1.5 hours",
-        deliverables: deliverablesList,
-        // Supplies the required NOT NULL column
-        evidence_created: evidenceSummary,
-        verification_target: `Detect passing tests and recent commit signal for ${item.skill_name}`,
-        status: "todo",
-      };
+    // Find skills needing evidence (claimed or partial, not already active in pending tasks)
+    const targetGaps = (resumeSkills || []).filter((claim) => {
+      if (activeSkillNames.has(claim.skill_name.toLowerCase())) return false;
+      const ev = (evidenceList || []).find(
+        (e) => e.skill_name.toLowerCase() === claim.skill_name.toLowerCase()
+      );
+      return !ev || ev.status === "claimed" || ev.status === "partial";
     });
 
-    const { error: insertError } = await supabase.from("micro_tasks").insert(newTasks);
+    if (targetGaps.length === 0) {
+      return NextResponse.json(
+        { error: "No unverified resume skill gaps found to generate tasks for." },
+        { status: 400 }
+      );
+    }
+
+    // Select the primary gap
+    const chosenGap = targetGaps[0];
+
+    // 3. Configure Gemini with Strict Structured Outputs
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "GEMINI_API_KEY is not configured" }, { status: 500 });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const taskSchema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        skill: { type: Type.STRING },
+        title: { type: Type.STRING, description: "Concrete, single-sentence objective title" },
+        description: { type: Type.STRING, description: "Short technical context and business use case" },
+        acceptanceCriteria: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "Exactly 3 actionable, verifiable deliverables (e.g. specific test file, config path, or PR branch artifact)",
+        },
+        difficulty: { type: Type.STRING, enum: ["Intermediate", "Advanced"] },
+        estimatedTime: { type: Type.STRING, description: "e.g., '1 - 2 hours'" },
+      },
+      required: ["skill", "title", "description", "acceptanceCriteria", "difficulty", "estimatedTime"],
+    };
+
+    const prompt = `You are a Principal Software Engineer designing a realistic portfolio micro-task for a developer.
+The developer claimed proficiency in: "${chosenGap.skill_name}".
+Context from resume: "${chosenGap.claimed_context || "General competency"}".
+
+CRITICAL QUALITY RULES:
+1. NEVER output passive or trivial assignments (DO NOT say "Read docs", "Add a comment", or "Learn basics").
+2. The task MUST require writing code, integration tests, or architectural configuration in a repository.
+3. Deliverables must be exact files that would serve as proof during an audit (e.g., Dockerfile multi-stage build, pytest test file with mock assertions, GitHub Actions workflow yaml).
+4. Provide exactly 3 concise acceptance criteria specifying expected files/outcomes.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: taskSchema,
+        temperature: 0.2,
+      },
+    });
+
+    const parsedTask = JSON.parse(response.text || "{}");
+
+    // 4. Insert into Supabase micro_tasks table
+    const { data: insertedTask, error: insertError } = await supabase
+      .from("micro_tasks")
+      .insert({
+        user_id: user.id,
+        skill_name: parsedTask.skill || chosenGap.skill_name,
+        title: parsedTask.title,
+        description: parsedTask.description,
+        difficulty: parsedTask.difficulty?.toLowerCase() || "intermediate",
+        estimated_time: parsedTask.estimatedTime || "1-2 hours",
+        deliverables: parsedTask.acceptanceCriteria || [],
+        verification_target: parsedTask.acceptanceCriteria?.[0] || "Pass test suite in PR",
+        status: "todo",
+      })
+      .select()
+      .single();
 
     if (insertError) {
-      console.error("Failed to insert micro tasks:", insertError);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      tasksGenerated: newTasks.length,
+      task: insertedTask,
     });
-  } catch (err: unknown) {
-    console.error("Micro-task generation error:", err);
+  } catch (error: unknown) {
+    console.error("Task generation failed:", error);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal server error" },
+      { error: error instanceof Error ? error.message : "Internal Server Error" },
       { status: 500 }
     );
   }
