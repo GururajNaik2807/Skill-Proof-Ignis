@@ -128,20 +128,20 @@ export default function LandingPage() {
             <Link href="#recruiters" className="hover:text-[#EDEDED] transition-colors">For Recruiters</Link>
           </div>
 
-          <div className="flex items-center gap-4 text-sm font-medium">
+          <div className="flex items-center gap-4 text-sm font-medium z-50 relative">
             <button
               type="button"
               onClick={() => setAuthMode("login")}
-              className="text-[#8A8F98] hover:text-[#EDEDED] transition-colors hidden sm:block cursor-pointer"
+              className="text-white font-semibold hover:text-[#00E5FF] transition-colors cursor-pointer bg-black/50 px-4 py-2 rounded-md border border-white/10 hover:border-[#00E5FF]/30"
             >
-              Log in
+              Sign In
             </button>
             <button
               type="button"
               onClick={() => setAuthMode("candidate")}
-              className="bg-[#EDEDED] text-[#050505] px-4 py-2 rounded-md transition-transform hover:scale-105 cursor-pointer"
+              className="bg-[#00E5FF] text-[#050505] font-bold px-4 py-2 rounded-md transition-transform hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(0,229,255,0.4)]"
             >
-              Get Started
+              Create Account
             </button>
           </div>
         </div>

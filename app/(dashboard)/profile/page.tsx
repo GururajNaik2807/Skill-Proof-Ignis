@@ -261,6 +261,14 @@ export default function ProfileResumePath() {
     setNotice(null);
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        await supabase.from("resume_skills").delete().eq("user_id", user.id);
+      }
+
       const { error } = await supabase.from("resumes").delete().eq("id", resumeRecord.id);
       if (error) throw error;
 

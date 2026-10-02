@@ -43,10 +43,10 @@ export async function POST(request: Request) {
       .from("job_descriptions")
       .insert({
         user_id: user.id,
-        role_title: role_title || parsedJob.role_title,
+        role_title: role_title || "Evaluated Job",
         raw_text: jd_text,
-        extracted_skills: parsedJob.required_skills,
-        match_score: matchReport.match_percentage,
+        extracted_skills: parsedJob.map((p) => p.skill_name),
+        match_score: matchReport.overall_score,
       })
       .select()
       .single();

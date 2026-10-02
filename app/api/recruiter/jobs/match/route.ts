@@ -41,24 +41,24 @@ export async function POST(request: Request) {
       const candidateEvidence = ((evidence || []).filter((item) => item.user_id === candidate.id) as CandidateEvidence[]);
       const report = calculateMatchScore(parsedJob, candidateEvidence);
       return { ...candidate, report };
-    }).sort((a, b) => b.report.match_percentage - a.report.match_percentage);
+    }).sort((a, b) => b.report.overall_score - a.report.overall_score);
 
     const { data: jobRecord } = await supabase.from("job_descriptions").insert({
       user_id: user.id,
-      role_title: job_title || parsedJob.role_title,
+      role_title: job_title || "Evaluated Job",
       raw_text: jd_text,
-      extracted_skills: parsedJob.required_skills,
-      match_score: results[0]?.report.match_percentage || 0,
+      extracted_skills: parsedJob.map(p => p.skill_name),
+      match_score: results[0]?.report.overall_score || 0,
     }).select("id").single();
 
     return NextResponse.json({
       success: true,
       job: {
         id: jobRecord?.id || null,
-        title: job_title || parsedJob.role_title,
+        title: job_title || "Evaluated Job",
         company_name: company_name || null,
-        required_skills: parsedJob.required_skills,
-        preferred_skills: parsedJob.preferred_skills,
+        required_skills: parsedJob.filter(p => p.importance === 'required').map(p => p.skill_name),
+        preferred_skills: parsedJob.filter(p => p.importance === 'preferred').map(p => p.skill_name),
       },
       candidates: results,
     });

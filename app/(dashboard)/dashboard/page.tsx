@@ -362,7 +362,7 @@ export default function DashboardPage() {
                           <p className="opacity-60">// or architectures associated with {selectedSkill.skill_name}.</p>
                           <div className="mt-3 flex gap-2">
                             {repo.has_tests && <span className="px-2 py-0.5 rounded bg-[#00E599]/10 text-[#00E599] border border-[#00E599]/20">Tests: ✓</span>}
-                            {repo.has_docker && <span className="px-2 py-0.5 rounded bg-[#00E599]/10 text-[#00E599] border border-[#00E599]/20">Docker: ✓</span>}
+                            {(repo as any).has_docker && <span className="px-2 py-0.5 rounded bg-[#00E599]/10 text-[#00E599] border border-[#00E599]/20">Docker: ✓</span>}
                           </div>
                         </div>
                       </div>

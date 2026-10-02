@@ -27,6 +27,8 @@ export default function PublicJobPage({ params }: PageProps) {
   const [isApplying, setIsApplying] = useState(false);
   const [notice, setNotice] = useState<{type: "success" | "error", text: string} | null>(null);
 
+  const [applicationInfo, setApplicationInfo] = useState<any>(null);
+
   useEffect(() => {
     fetchJobAndUser();
   }, [resolvedParams.slug]);
@@ -76,12 +78,15 @@ export default function PublicJobPage({ params }: PageProps) {
         const [profRes, resumeRes, appRes] = await Promise.all([
           supabase.from("profiles").select("id, full_name, github_username, role").eq("id", currentUser.id).single(),
           supabase.from("resumes").select("id, file_name, created_at").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-          supabase.from("job_applications").select("id").eq("job_id", jobData.id).eq("candidate_id", currentUser.id).maybeSingle(),
+          supabase.from("job_applications").select("id, resume_id").eq("job_id", jobData.id).eq("candidate_id", currentUser.id).maybeSingle(),
         ]);
 
         if (profRes.data) setCandidateProfile(profRes.data);
         if (resumeRes.data) setCandidateResume(resumeRes.data);
-        if (appRes.data) setHasApplied(true);
+        if (appRes.data) {
+          setHasApplied(true);
+          setApplicationInfo(appRes.data);
+        }
       }
     } catch (err) {
       console.error("Error loading job:", err);
@@ -122,9 +127,33 @@ export default function PublicJobPage({ params }: PageProps) {
       }
 
       setHasApplied(true);
+      // We don't get the ID back immediately, but refresh or assume matching
+      setApplicationInfo({ resume_id: candidateResume.id });
       setNotice({ type: "success", text: "Application and verified technical evidence submitted successfully!" });
     } catch (err: any) {
       setNotice({ type: "error", text: err.message || "Failed to submit application." });
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleUpdateApplication = async () => {
+    if (!applicationInfo?.id || !candidateResume) return;
+    
+    setIsApplying(true);
+    setNotice(null);
+
+    try {
+      const { error } = await supabase.from("job_applications")
+        .update({ resume_id: candidateResume.id, created_at: new Date().toISOString() })
+        .eq("id", applicationInfo.id);
+
+      if (error) throw error;
+
+      setApplicationInfo({ ...applicationInfo, resume_id: candidateResume.id });
+      setNotice({ type: "success", text: "Application updated with your latest resume!" });
+    } catch (err: any) {
+      setNotice({ type: "error", text: err.message || "Failed to update application." });
     } finally {
       setIsApplying(false);
     }
@@ -173,6 +202,14 @@ export default function PublicJobPage({ params }: PageProps) {
               >
                 Dashboard
               </Link>
+              <form action="/auth/signout" method="POST">
+                <button
+                  type="submit"
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-900/50 hover:bg-red-900/20 text-red-400 transition-colors cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </form>
             </div>
           ) : (
             <Link 
@@ -227,56 +264,115 @@ export default function PublicJobPage({ params }: PageProps) {
           {/* Application Submission Box */}
           <div className="pt-6 border-t border-zinc-800/80">
             {hasApplied ? (
-              <div className="p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center space-y-2">
+              <div className="p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center space-y-4">
                 <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400 mx-auto">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
-                <h4 className="text-base font-bold text-zinc-100">Application Submitted</h4>
-                <p className="text-xs text-zinc-400">
-                  Your verified profile and attached resume are under review by {job.company_name}.
-                </p>
-                <div className="pt-2">
-                  <Link href="/jobs" className="text-xs font-semibold text-emerald-400 hover:underline">
-                    View in My Applications →
-                  </Link>
+                <div>
+                  <h4 className="text-base font-bold text-zinc-100">Application Submitted</h4>
+                  <p className="text-xs text-zinc-400">
+                    Your verified profile and attached resume are under review by {job.company_name}.
+                  </p>
                 </div>
-              </div>
-            ) : user ? (
-              <div className="space-y-5">
-                <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-2">
-                  <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">
-                    Profile Data Transferred Upon Applying:
-                  </span>
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span className="flex items-center gap-1.5">
-                      <UserCheck className="w-4 h-4 text-emerald-400" /> Verified GitHub:
-                    </span>
-                    <strong className="font-mono text-zinc-100">@{candidateProfile?.github_username || "Not synced"}</strong>
+                {candidateResume && applicationInfo?.resume_id !== candidateResume.id ? (
+                  <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-left space-y-3 mt-4">
+                    <p className="text-xs text-zinc-400">
+                      We noticed you uploaded a newer resume (<span className="text-zinc-200">{candidateResume.file_name}</span>). Would you like to update your application with this resume?
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleUpdateApplication}
+                      disabled={isApplying}
+                      className="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      {isApplying ? <Loader2 className="w-3 h-3 animate-spin" /> : "Update Application Resume"}
+                    </button>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span className="flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-emerald-400" /> Attached Resume:
-                    </span>
-                    <strong className="font-mono text-zinc-100">{candidateResume?.file_name || "No resume uploaded"}</strong>
-                  </div>
-                </div>
-
-                {!candidateResume && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-300 text-xs flex items-center justify-between">
-                    <span>You need an active resume to submit an application.</span>
-                    <Link href="/profile" className="font-bold underline hover:text-amber-200">
-                      Upload PDF
+                ) : (
+                  <div className="pt-2">
+                    <Link href="/dashboard" className="text-xs font-semibold text-emerald-400 hover:underline">
+                      View in Candidate Workspace →
                     </Link>
                   </div>
                 )}
+              </div>
+            ) : user ? (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold text-zinc-100 font-heading border-b border-zinc-800 pb-2 mb-4">Application</h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 mb-1.5">Full Name</label>
+                    <input 
+                      type="text" 
+                      disabled
+                      value={candidateProfile?.full_name || ""}
+                      className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-500 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 mb-1.5">Email</label>
+                    <input 
+                      type="email" 
+                      disabled
+                      value={user.email || ""}
+                      className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-500 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1.5">Resume [ Upload PDF ]</label>
+                  {candidateResume ? (
+                    <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm">
+                      <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> {candidateResume.file_name} attached</span>
+                      <Link href="/profile" className="text-xs underline hover:text-emerald-300">Change</Link>
+                    </div>
+                  ) : (
+                    <div className="p-4 border border-dashed border-zinc-800 bg-zinc-950 rounded-xl text-center">
+                      <Link href="/profile" className="text-sm font-bold text-emerald-400 hover:underline">Upload Resume</Link>
+                      <p className="text-xs text-zinc-500 mt-1">Required to apply</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1.5">Cover Letter [ Optional Text area ]</label>
+                  <textarea 
+                    placeholder="Why are you a good fit for this role?"
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500 rounded-xl px-4 py-3 text-sm text-zinc-100 outline-none h-24 resize-none"
+                  ></textarea>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 mb-1.5">GitHub [ URL ]</label>
+                    <input 
+                      type="text" 
+                      disabled
+                      value={`github.com/${candidateProfile?.github_username || ""}`}
+                      className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-500 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 mb-1.5">Portfolio [ Optional URL ]</label>
+                    <input 
+                      type="url" 
+                      placeholder="https://"
+                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-zinc-100 outline-none"
+                    />
+                  </div>
+                </div>
 
                 <button
                   type="button"
                   onClick={handleApply}
                   disabled={isApplying || !candidateResume}
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 text-sm font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 text-sm font-bold rounded-xl transition-all shadow-sm disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {isApplying ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Submit Verified Application <ArrowRight className="w-4 h-4" /></>}
+                  {isApplying ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Submit Application</>}
                 </button>
               </div>
             ) : (

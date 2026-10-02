@@ -75,58 +75,66 @@ export default async function RecruiterLayout({
           </div>
 
           {/* Expanded Navigation */}
-          <nav className="p-3 space-y-1 mt-4">
-            <Link
-              href="/recruiter/dashboard"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
-            >
-              <LayoutDashboard className="w-4 h-4 text-emerald-400" />
-              Overview
-            </Link>
-            <Link
-              href="/recruiter/jobs"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
-            >
-              <Briefcase className="w-4 h-4 text-emerald-400" />
-              Jobs
-            </Link>
-            <Link
-              href="/recruiter/dashboard"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
-            >
-              <Users className="w-4 h-4 text-emerald-400" />
-              Candidates
-            </Link>
-            <Link
-              href="/recruiter/dashboard"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
-            >
-              <FileSearch className="w-4 h-4 text-emerald-400" />
-              Evidence
-            </Link>
-            <Link
-              href="/recruiter/dashboard"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
-            >
-              <Star className="w-4 h-4 text-emerald-400" />
-              Shortlist
-            </Link>
-          </nav>
+          <div className="p-3 mt-2">
+            <h3 className="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Main</h3>
+            <nav className="space-y-1">
+              <Link
+                href="/recruiter/dashboard"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
+              >
+                <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                Overview
+              </Link>
+              <Link
+                href="/recruiter/jobs"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
+              >
+                <Briefcase className="w-4 h-4 text-emerald-400" />
+                Jobs
+              </Link>
+              <Link
+                href="/recruiter/candidates"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
+              >
+                <Users className="w-4 h-4 text-emerald-400" />
+                Candidates
+              </Link>
+              <Link
+                href="/recruiter/shortlist"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
+              >
+                <Star className="w-4 h-4 text-emerald-400" />
+                Shortlist
+              </Link>
+            </nav>
+
+            <h3 className="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-6 mb-2">Workspace</h3>
+            <nav className="space-y-1">
+              <Link
+                href="/recruiter/evidence"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
+              >
+                <FileSearch className="w-4 h-4 text-emerald-400" />
+                Evidence
+              </Link>
+            </nav>
+          </div>
         </div>
 
         {/* Bottom Actions */}
         <div>
           <div className="px-3 pb-2">
+            <h3 className="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Account</h3>
             <Link
-              href="/recruiter/dashboard"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
+              href="/recruiter/settings"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
             >
               <Settings className="w-4 h-4" />
               Settings
             </Link>
           </div>
-          <div className="p-4 border-t border-zinc-800/80 flex items-center justify-between bg-zinc-950">
-            <div className="truncate max-w-36">
+          <div className="p-4 border-t border-zinc-800/80 flex items-center justify-between bg-zinc-950 gap-2">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-zinc-200 truncate">
                 {profile?.full_name || user.email?.split("@")[0]}
               </p>
@@ -150,7 +158,6 @@ export default async function RecruiterLayout({
         <header className="h-16 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md flex items-center justify-between px-5 md:px-8 shrink-0">
           <div>
             <p className="font-heading font-bold text-sm text-zinc-100">Recruiter Workspace</p>
-            <p className="text-[11px] font-mono text-zinc-500 hidden sm:block">Evidence-led candidate review</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-bold font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md uppercase tracking-wider">

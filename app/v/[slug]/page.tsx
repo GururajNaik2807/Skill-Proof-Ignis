@@ -36,6 +36,8 @@ export default async function PublicProofPage({ params }: PageProps) {
     notFound();
   }
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   // 2. Fetch their public evidence
   const { data: evidence } = await supabase
     .from("skill_evidence")
@@ -50,16 +52,38 @@ export default async function PublicProofPage({ params }: PageProps) {
     <div className="min-h-screen bg-warm-ivory text-ink flex flex-col justify-between">
       {/* Top Banner */}
       <header className="border-b border-border bg-white px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-deep-green flex items-center justify-center text-white">
-              <ShieldCheck className="w-5 h-5 text-emerald" />
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-deep-green flex items-center justify-center text-white">
+                <ShieldCheck className="w-5 h-5 text-emerald" />
+              </div>
+              <span className="font-bold text-base font-heading">SkillProof</span>
+            </Link>
+            <span className="text-[11px] font-mono bg-soft-surface px-2.5 py-1 rounded border border-border text-muted-text hidden sm:inline-block">
+              Verified Audit Report
+            </span>
+          </div>
+
+          {/* User Actions */}
+          {user && (
+            <div className="flex items-center gap-3">
+              <Link 
+                href="/dashboard"
+                className="text-xs font-semibold px-3 py-1.5 rounded border border-border hover:bg-soft-surface text-ink transition-colors"
+              >
+                Dashboard
+              </Link>
+              <form action="/auth/signout" method="POST">
+                <button
+                  type="submit"
+                  className="text-xs font-semibold px-3 py-1.5 rounded border border-red-200 hover:bg-red-50 text-red-600 transition-colors cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </form>
             </div>
-            <span className="font-bold text-base font-heading">SkillProof</span>
-          </Link>
-          <span className="text-[11px] font-mono bg-soft-surface px-2.5 py-1 rounded border border-border text-muted-text">
-            Verified Audit Report
-          </span>
+          )}
         </div>
       </header>
 

@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractSkills, ExtractedSkill } from "@/lib/gemini/extractor";
 
-// Safe import for pdf-parse in Next.js / TypeScript
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse");
-
 export async function POST(req: Request) {
+  // Safe import for pdf-parse in Next.js / TypeScript
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require("pdf-parse");
+
   try {
     const supabase = await createClient();
     const {

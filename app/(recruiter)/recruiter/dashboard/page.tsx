@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CandidateTable } from "@/components/recruiter/candidate-table";
-import { Plus, Users, ShieldCheck, Star, Briefcase, ArrowRight, Search, Filter } from "lucide-react";
+import { Plus, Users, ShieldCheck, Star, Briefcase, Search, Filter, ArrowRight } from "lucide-react";
 
 export default async function RecruiterDashboard() {
   const supabase = await createClient();
@@ -10,64 +10,98 @@ export default async function RecruiterDashboard() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 1. Fetch real active jobs for this recruiter
+  // 1. Fetch active jobs created by this recruiter
   const { data: dbJobs } = await supabase
     .from("jobs")
-    .select("id, title, required_skills, status, share_slug")
+    .select("id, title, required_skills, status, share_slug, created_at")
     .eq("recruiter_id", user?.id || "")
     .order("created_at", { ascending: false });
 
-  // 2. Fetch real submitted job applications
-  const { data: realApplications } = await supabase
+  // 2. Fetch real submitted job applications with candidate profiles explicitly using the new FK
+  const { data: realApplications, error: appError } = await supabase
     .from("job_applications")
     .select(`
       id,
       status,
       created_at,
-      candidate:profiles!job_applications_candidate_id_fkey(
+      candidate:profiles!job_applications_candidate_id_fkey (
         id,
         full_name,
         target_role,
         github_username
       ),
-      job:jobs!job_applications_job_id_fkey(
+      job:jobs!job_applications_job_id_fkey (
         id,
-        title
+        title,
+        required_skills
       )
     `)
     .order("created_at", { ascending: false });
 
-  // Fallback candidate profiles if no applications exist yet
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, target_role, github_username")
-    .eq("role", "candidate");
+  if (appError) console.error("Application Join Error:", appError.message);
 
-  // Map submitted applicants into candidate rows
-  const applicantRows = (realApplications || [])
-    .filter((app: any) => app.candidate)
-    .map((app: any) => ({
-      id: app.candidate.id,
-      full_name: app.candidate.full_name,
-      target_role: app.job?.title || app.candidate.target_role || "Software Engineer",
-      github_username: app.candidate.github_username,
-      evidence_score: "8 / 10",
-      job_match: 92,
-      status: app.status === "shortlisted" ? "Shortlisted" : "Verified",
-    }));
+  const candidateIds = (realApplications || [])
+    .map((app: any) => app.candidate?.id)
+    .filter(Boolean);
 
-  const candidateDisplayList = applicantRows.length > 0 ? applicantRows : (profiles || []);
+  // 3. Query real evidence records for these applicants
+  const { data: evidenceRows } = candidateIds.length > 0
+    ? await supabase
+      .from("skill_evidence")
+      .select("user_id, skill_name, status")
+      .in("user_id", candidateIds)
+    : { data: [] };
 
-  const candidatesCount = candidateDisplayList.length > 0 ? candidateDisplayList.length : 12;
-  const verifiedCount = Math.max(1, Math.floor(candidatesCount * 0.7));
-  const strongMatchCount = Math.max(1, Math.floor(candidatesCount * 0.5));
-  const shortlistedCount = applicantRows.filter((r) => r.status === "Shortlisted").length || 3;
+  // 4. Map strictly from real data
+  const candidateRows = (realApplications || [])
+    .filter((app: any) => app.candidate) // Exclude applications where profile join failed
+    .map((app: any) => {
+      const candidateEvidence = (evidenceRows || []).filter(
+        (e: any) => e.user_id === app.candidate.id
+      );
+
+      const provenCount = candidateEvidence.filter((e: any) => e.status === "proven").length;
+      const totalCount = candidateEvidence.length;
+
+      // Calculate Job Match against required skills
+      const requiredList: string[] = app.job?.required_skills || [];
+      let matchPercent = 0;
+      if (requiredList.length > 0) {
+        const provenSkillNames = new Set(
+          candidateEvidence
+            .filter((e: any) => e.status === "proven")
+            .map((e: any) => e.skill_name.toLowerCase().trim())
+        );
+        const matches = requiredList.filter((r) =>
+          provenSkillNames.has(r.toLowerCase().trim())
+        ).length;
+        matchPercent = Math.round((matches / requiredList.length) * 100);
+      }
+
+      return {
+        id: app.candidate.id,
+        application_id: app.id,
+        full_name: app.candidate.full_name || "Candidate",
+        target_role: app.job?.title || app.candidate.target_role || "Software Engineer",
+        github_username: app.candidate.github_username,
+        evidence_score: `${provenCount} / ${totalCount}`,
+        job_match: matchPercent,
+        status: app.status === "shortlisted" ? "Shortlisted" : "Verified",
+      };
+    });
+
+  // Calculate real metrics
+  const totalAnalyzed = candidateRows.length;
+  const verifiedCount = candidateRows.filter(
+    (c) => parseInt(c.evidence_score.split("/")[0]) > 0
+  ).length;
+  const strongMatches = candidateRows.filter((c) => c.job_match >= 75).length;
+  const shortlistedCount = candidateRows.filter((c) => c.status === "Shortlisted").length;
 
   return (
     <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in duration-300 py-4">
-      {/* Hero Section */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-        <div className="max-w-2xl">
+        <div>
           <h1 className="text-3xl sm:text-4xl font-bold font-heading text-zinc-100 tracking-tight">
             Find candidates whose skills are <span className="text-emerald-400">actually proven.</span>
           </h1>
@@ -76,23 +110,22 @@ export default async function RecruiterDashboard() {
           </p>
         </div>
         <Link
-          href="/recruiter/jobs"
+          href="/recruiter/jobs/create"
           className="shrink-0 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 text-sm font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] flex items-center gap-2"
         >
-          <Plus className="w-4 h-4" /> Create Job
+          <Plus className="w-4 h-4" /> Create Job Posting
         </Link>
       </div>
 
-      {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Candidates analyzed", value: candidatesCount, icon: Users, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-          { label: "Verified evidence", value: verifiedCount, icon: ShieldCheck, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-          { label: "Strong matches", value: strongMatchCount, icon: Briefcase, color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20" },
-          { label: "Shortlisted", value: shortlistedCount, icon: Star, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+          { label: "Applicants Evaluated", value: totalAnalyzed, icon: Users, color: "text-blue-400", border: "border-blue-500/20" },
+          { label: "Verified Evidence", value: verifiedCount, icon: ShieldCheck, color: "text-emerald-400", border: "border-emerald-500/20" },
+          { label: "Strong Matches", value: strongMatches, icon: Briefcase, color: "text-cyan-400", border: "border-cyan-500/20" },
+          { label: "Shortlisted", value: shortlistedCount, icon: Star, color: "text-amber-400", border: "border-amber-500/20" },
         ].map((stat, i) => (
-          <div key={i} className={`p-5 rounded-2xl border ${stat.border} bg-zinc-900/50 backdrop-blur-sm flex flex-col justify-between`}>
-            <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center mb-3`}>
+          <div key={i} className={`p-5 rounded-2xl border ${stat.border} bg-zinc-900/50 flex flex-col justify-between`}>
+            <div className={`w-8 h-8 rounded-lg ${stat.color.replace('text-', 'bg-').replace('400', '500/10')} ${stat.color} flex items-center justify-center mb-3`}>
               <stat.icon className="w-4 h-4" />
             </div>
             <div>
@@ -103,7 +136,6 @@ export default async function RecruiterDashboard() {
         ))}
       </div>
 
-      {/* Active Jobs */}
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
           <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest">Active Jobs</h2>
@@ -113,42 +145,34 @@ export default async function RecruiterDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(dbJobs && dbJobs.length > 0 ? dbJobs.slice(0, 2) : [
-            { id: "1", title: "Frontend Engineer", required_skills: ["React", "TypeScript", "Tailwind CSS"], candidatesCount: 12, verified: 8 },
-            { id: "2", title: "Data Analyst", required_skills: ["Python", "SQL", "Pandas"], candidatesCount: 8, verified: 5 },
-          ]).map((job: any) => (
-            <div key={job.id} className="p-5 border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/80 transition-colors rounded-2xl group flex flex-col justify-between h-full">
-              <div>
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-bold text-zinc-100">{job.title}</h3>
-                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">ACTIVE</span>
-                </div>
-                <p className="text-xs font-mono text-zinc-400">
-                  {job.required_skills?.slice(0, 4).join(" · ")}
-                </p>
-                <div className="mt-4 flex items-center gap-3 text-xs font-mono text-zinc-500">
-                  <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {job.candidatesCount || applicantRows.length || 1} candidates</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1.5 text-emerald-400/80"><ShieldCheck className="w-3.5 h-3.5" /> {job.verified || 1} verified</span>
-                </div>
-              </div>
-              <Link href="/recruiter/jobs" className="mt-5 text-xs font-bold text-emerald-400 flex items-center gap-1.5 group-hover:gap-2 transition-all">
-                View pipeline <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+          {(!dbJobs || dbJobs.length === 0) ? (
+            <div className="col-span-1 md:col-span-2 p-8 border border-dashed border-zinc-800 rounded-2xl text-center bg-zinc-900/30">
+              <p className="text-sm text-zinc-400">No active jobs. Create a post to start receiving applicants.</p>
             </div>
-          ))}
+          ) : (
+            dbJobs.slice(0, 2).map((job: any) => (
+              <div key={job.id} className="p-5 border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/80 transition-colors rounded-2xl flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-bold text-zinc-100">{job.title}</h3>
+                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">ACTIVE</span>
+                  </div>
+                  <p className="text-xs font-mono text-zinc-400">
+                    {job.required_skills?.slice(0, 4).join(" · ")}
+                  </p>
+                </div>
+                <Link href={`/recruiter/jobs`} className="mt-5 text-xs font-bold text-emerald-400 flex items-center gap-1.5 transition-all hover:gap-2">
+                  View pipeline <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Candidate Review Workspace */}
       <div className="space-y-4">
         <div className="flex items-end justify-between border-b border-zinc-800 pb-3">
-          <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest">Candidate Review</h2>
-          {applicantRows.length > 0 && (
-            <span className="text-xs font-mono text-emerald-400">
-              {applicantRows.length} incoming verified applications
-            </span>
-          )}
+          <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest">Candidate Applications ({candidateRows.length})</h2>
         </div>
 
         <div className="p-1 bg-zinc-900/50 border border-zinc-800/80 rounded-2xl shadow-2xl overflow-hidden">
@@ -162,16 +186,19 @@ export default async function RecruiterDashboard() {
               />
             </div>
             <div className="flex gap-2">
-              <button className="px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-medium text-zinc-300 flex items-center gap-2 hover:bg-zinc-800 transition-colors cursor-pointer">
+              <button className="px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-medium text-zinc-300 flex items-center gap-2 hover:bg-zinc-800 transition-colors">
                 <Filter className="w-3.5 h-3.5" /> Evidence
-              </button>
-              <button className="px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-medium text-zinc-300 flex items-center gap-2 hover:bg-zinc-800 transition-colors cursor-pointer">
-                Job match
               </button>
             </div>
           </div>
 
-          <CandidateTable candidates={candidateDisplayList} />
+          {candidateRows.length === 0 ? (
+            <div className="p-12 text-center">
+              <p className="text-zinc-500 text-sm">No candidates have applied to your active jobs yet.</p>
+            </div>
+          ) : (
+            <CandidateTable candidates={candidateRows} />
+          )}
         </div>
       </div>
     </div>

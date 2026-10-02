@@ -73,10 +73,10 @@ Return a JSON array of objects with this schema:
     const parsed = JSON.parse(result.response.text());
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.map((item) => ({
+    return parsed.map((item: any) => ({
       skill_name: String(item.skill_name || "").trim(),
-      importance: item.importance === "preferred" ? "preferred" : "required",
-    })).filter((item) => item.skill_name.length > 0);
+      importance: (item.importance === "preferred" ? "preferred" : "required") as "required" | "preferred",
+    })).filter((item: any) => item.skill_name.length > 0);
   } catch (err) {
     console.error("parseJobDescription error:", err);
     return [];
