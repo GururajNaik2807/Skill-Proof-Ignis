@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-// @ts-expect-error pdf-parse lacks native ESM types
-import pdfParse from "pdf-parse";
+import { extractText, getDocumentProxy } from "unpdf";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -38,14 +39,17 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 1. Extract plain text from PDF
+    // 1. Extract plain text from PDF using unpdf
     let parsedText = "";
     try {
-      const pdfData = await pdfParse(buffer);
-      parsedText = pdfData.text;
-    } catch {
+      const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer));
+      const { text } = await extractText(pdf, { mergePages: true });
+      parsedText = Array.isArray(text) ? text.join("\n") : (text || "");
+    } catch (parseErr: unknown) {
+      console.error("PDF Parsing error detail:", parseErr);
+      const msg = parseErr instanceof Error ? parseErr.message : "Failed to extract text";
       return NextResponse.json(
-        { error: "Failed to read text from PDF. Ensure file is not password-protected." },
+        { error: `Could not parse PDF: ${msg}` },
         { status: 422 }
       );
     }
