@@ -1,14 +1,9 @@
 import Link from "next/link";
 import {
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   FileCode2,
-  GitBranch,
-  Target,
   ArrowRight,
-  Code2,
-  Terminal,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
@@ -27,8 +22,7 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-ink font-heading max-w-4xl mx-auto leading-[1.15]">
-          Your resume says it. <br />
-          <span className="text-deep-green">Your work proves it.</span>
+          Turn technical skill claims into evidence.
         </h1>
 
         <p className="mt-6 text-lg sm:text-xl text-muted-text max-w-2xl mx-auto leading-relaxed">
@@ -42,14 +36,14 @@ export default function LandingPage() {
             href="/signup"
             className="w-full sm:w-auto px-6 py-3 bg-deep-green text-white font-medium rounded-lg hover:bg-deep-green/90 transition-all flex items-center justify-center gap-2 shadow-card"
           >
-            Start Verification Report
+            Prove Your Skills
             <ArrowRight className="w-4 h-4" />
           </Link>
           <a
-            href="#example"
+            href="/signup?role=recruiter"
             className="w-full sm:w-auto px-6 py-3 bg-white border border-border text-ink font-medium rounded-lg hover:bg-soft-surface transition-colors"
           >
-            View Sample Audit
+            For Recruiters
           </a>
         </div>
       </section>

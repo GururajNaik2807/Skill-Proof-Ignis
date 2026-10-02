@@ -7,6 +7,8 @@ import {
   ShieldCheck,
   LayoutDashboard,
   CheckCircle2,
+  GitBranch,
+  FileText,
   Briefcase,
   Layers,
   ChevronLeft,
@@ -28,12 +30,12 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
 
   const navItems = [
     {
-      label: "Verification Hub",
+      label: "Overview",
       href: "/dashboard",
       icon: LayoutDashboard,
     },
     {
-      label: "Evidence Matrix",
+      label: "Evidence",
       href: "/matrix",
       icon: CheckCircle2,
     },
@@ -48,8 +50,18 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
       icon: Layers,
     },
     {
-      label: "Profile Onboarding",
-      href: "/onboarding",
+      label: "GitHub",
+      href: "/onboarding#github",
+      icon: GitBranch,
+    },
+    {
+      label: "Resume",
+      href: "/onboarding#resume",
+      icon: FileText,
+    },
+    {
+      label: "Profile",
+      href: "/onboarding#profile",
       icon: UserCheck,
     },
   ];
@@ -104,6 +116,7 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 title={collapsed ? item.label : undefined}
                 className={`flex items-center rounded-lg transition-colors text-xs font-semibold ${
                   collapsed ? "justify-center px-0 py-3" : "gap-3 px-3.5 py-2.5"
