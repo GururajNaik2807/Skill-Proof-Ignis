@@ -5,11 +5,10 @@ import {
   ShieldCheck,
   Users,
   Briefcase,
-  FileCheck2,
-  ExternalLink,
   LogOut,
   Building2,
 } from "lucide-react";
+import { getUserRole } from "@/lib/auth/roles";
 
 export default async function RecruiterLayout({
   children,
@@ -23,6 +22,11 @@ export default async function RecruiterLayout({
 
   if (!user) {
     redirect("/login");
+  }
+
+  const role = await getUserRole(supabase, user);
+  if (role !== "recruiter") {
+    redirect(role === "candidate" ? "/dashboard" : "/login?error=profile-role-required");
   }
 
   const { data: profile } = await supabase
@@ -46,7 +50,7 @@ export default async function RecruiterLayout({
                   SkillProof
                 </span>
                 <span className="text-[10px] text-muted-text font-mono uppercase tracking-wider">
-                  Employer Portal
+                  Recruiter Workspace
                 </span>
               </div>
             </Link>
@@ -112,14 +116,7 @@ export default async function RecruiterLayout({
               Live GitHub Codebase Verification Active
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="text-xs text-muted-text hover:text-deep-green flex items-center gap-1 font-medium"
-            >
-              Candidate View <ExternalLink className="w-3 h-3 opacity-60" />
-            </Link>
-          </div>
+          <div className="flex items-center gap-3" />
         </header>
 
         <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">

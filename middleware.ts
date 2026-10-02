@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { normalizeRole, workspaceForRole } from "@/lib/auth/roles";
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -49,21 +50,43 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith("/signup");
     const isDashboardRoute =
       request.nextUrl.pathname.startsWith("/dashboard") ||
-      request.nextUrl.pathname.startsWith("/resume") ||
-      request.nextUrl.pathname.startsWith("/skills") ||
-      request.nextUrl.pathname.startsWith("/job-match") ||
-      request.nextUrl.pathname.startsWith("/micro-tasks");
+      request.nextUrl.pathname.startsWith("/onboarding") ||
+      request.nextUrl.pathname.startsWith("/matrix") ||
+      request.nextUrl.pathname.startsWith("/jobs") ||
+      request.nextUrl.pathname.startsWith("/tasks");
+    const isRecruiterRoute = request.nextUrl.pathname.startsWith("/recruiter");
 
-    if (!user && isDashboardRoute) {
+    if (!user && (isDashboardRoute || isRecruiterRoute)) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
     }
 
-    if (user && isAuthRoute) {
+    if (user && (isAuthRoute || isDashboardRoute || isRecruiterRoute)) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      const role = normalizeRole(profile?.role ?? user.user_metadata?.role);
+
+      if (!role) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        url.searchParams.set("error", "profile-role-required");
+        return NextResponse.redirect(url);
+      }
+
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
+      if (isAuthRoute) {
+        url.pathname = workspaceForRole(role);
+        return NextResponse.redirect(url);
+      }
+
+      if ((isDashboardRoute && role === "recruiter") || (isRecruiterRoute && role === "candidate")) {
+        url.pathname = workspaceForRole(role);
+        return NextResponse.redirect(url);
+      }
     }
   } catch (error) {
     console.error("Supabase middleware error:", error);
