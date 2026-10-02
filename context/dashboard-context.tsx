@@ -25,6 +25,12 @@ interface SkillEvidence {
   status: "proven" | "partial" | "claimed";
   confidence_score: number;
   evidence_summary: string | null;
+  matched_repos?: {
+    name: string;
+    url: string;
+    has_tests: boolean;
+    last_commit_at: string | null;
+  }[];
 }
 
 interface MicroTask {
@@ -100,7 +106,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       ] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, full_name, github_username, target_role, share_slug, last_scan_at, last_parse_at")
+          .select("id, full_name, github_username, avatar_url, target_role, share_slug, last_scan_at, last_parse_at")
           .eq("id", user.id)
           .single(),
         supabase
@@ -115,7 +121,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           .order("created_at", { ascending: false }),
         supabase
           .from("skill_evidence")
-          .select("id, skill_name, status, confidence_score, evidence_summary")
+          .select("id, skill_name, status, confidence_score, evidence_summary, matched_repos")
           .eq("user_id", user.id)
           .order("confidence_score", { ascending: false }),
         supabase
@@ -154,27 +160,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // 1. Try reading from memory/sessionStorage first
-    try {
-      const cached = sessionStorage.getItem(STORAGE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        // Valid for 10 minutes unless invalidated
-        if (Date.now() - parsed.timestamp < 10 * 60 * 1000) {
-          setProfile(parsed.profile);
-          setRepositories(parsed.repositories);
-          setResumeSkills(parsed.resumeSkills);
-          setEvidenceList(parsed.evidenceList);
-          setTasks(parsed.tasks);
-          setLoading(false);
-          return;
-        }
-      }
-    } catch {
-      // Fall through to initial fetch
-    }
+    const fetchTimer = window.setTimeout(() => {
+      void fetchFromDb();
+    }, 0);
 
-    fetchFromDb();
+    return () => window.clearTimeout(fetchTimer);
   }, []);
 
   const refreshData = async () => {

@@ -1,315 +1,50 @@
 import Link from "next/link";
 import {
-  CheckCircle2,
-  AlertCircle,
-  FileCode2,
   ArrowRight,
+  CheckCircle2,
+  ChevronRight,
+  FileText,
+  GitBranch,
+  Search,
+  ShieldCheck,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 
+const evidenceRows = [
+  { skill: "Python", status: "PROVEN", tone: "proven", evidence: "5 repositories", activity: "Recent commits", detail: "Python dependencies · Tests detected" },
+  { skill: "React", status: "PROVEN", tone: "proven", evidence: "3 repositories", activity: "Recent commits", detail: "TypeScript · Component tests" },
+  { skill: "Docker", status: "PARTIAL", tone: "partial", evidence: "1 repository", activity: "4 months ago", detail: "Dockerfile detected · No test suite" },
+  { skill: "AWS", status: "CLAIMED-ONLY", tone: "claimed", evidence: "No supporting evidence", activity: "—", detail: "Resume claim · No repository signal" },
+];
+
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-warm-ivory text-ink selection:bg-emerald/20 selection:text-ink">
-
-
+    <div className="min-h-screen bg-warm-ivory text-ink selection:bg-emerald/20">
       <Navbar />
-      {/* Hero Section */}
-      <section className="pt-20 pb-16 px-4 sm:px-6 max-w-5xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-soft-surface border border-border text-xs font-semibold text-deep-green mb-6">
-          <span className="w-2 h-2 rounded-full bg-emerald"></span>
-          Skill Verification for Serious Developers
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-ink font-heading max-w-4xl mx-auto leading-[1.15]">
-          Turn technical skill claims into evidence.
-        </h1>
-
-        <p className="mt-6 text-lg sm:text-xl text-muted-text max-w-2xl mx-auto leading-relaxed">
-          SkillProof inspects the public code, commit histories, package
-          configs, and test suites in your GitHub repositories to prove the
-          technical claims on your resume.
-        </p>
-
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href="/signup"
-            className="w-full sm:w-auto px-6 py-3 bg-deep-green text-white font-medium rounded-lg hover:bg-deep-green/90 transition-all flex items-center justify-center gap-2 shadow-card"
-          >
-            Prove Your Skills
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <a
-            href="/signup?role=recruiter"
-            className="w-full sm:w-auto px-6 py-3 bg-white border border-border text-ink font-medium rounded-lg hover:bg-soft-surface transition-colors"
-          >
-            For Recruiters
-          </a>
-        </div>
-      </section>
-
-      {/* Status Classification Engine Section */}
-      <section id="evidence" className="py-12 px-4 sm:px-6 max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading">
-            Traceable Verification Tiers
-          </h2>
-          <p className="text-sm sm:text-base text-muted-text mt-2 max-w-xl mx-auto">
-            No synthetic AI stamps. Every skill rating is derived directly from
-            concrete codebase artifacts.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Proven */}
-          <div className="bg-white border border-border rounded-xl p-6 shadow-subtle">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-3 h-3 rounded-full bg-status-proven"></span>
-              <span className="font-bold text-sm text-status-proven uppercase tracking-wider">
-                Proven
-              </span>
-            </div>
-            <p className="text-sm text-muted-text mb-4">
-              Supported by actual repository code, active commits, unit tests,
-              and declared production dependencies.
-            </p>
-            <div className="bg-warm-ivory/60 border border-border/80 rounded-lg p-3 text-xs space-y-2">
-              <div className="flex items-center gap-2 font-mono text-ink">
-                <CheckCircle2 className="w-3.5 h-3.5 text-status-proven shrink-0" />
-                <span>requirements.txt + pytest</span>
+      <main>
+        <section className="max-w-6xl mx-auto px-5 sm:px-8 pt-16 sm:pt-24 pb-20">
+          <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-14 lg:gap-20 items-center">
+            <div className="page-enter">
+              <div className="flex items-center gap-2 text-sm text-deep-green font-medium mb-7"><span className="w-7 h-px bg-emerald" />Technical verification for working engineers</div>
+              <h1 className="font-heading text-5xl sm:text-6xl lg:text-[4.5rem] leading-[1.02] font-extrabold tracking-[-0.055em] max-w-xl">Your resume says it.<br /><span className="text-deep-green">Your work proves it.</span></h1>
+              <p className="mt-7 text-lg leading-8 text-muted-text max-w-lg">SkillProof connects the skills you claim with evidence from the work you&apos;ve actually built.</p>
+              <div className="mt-9 flex flex-col sm:flex-row gap-3">
+                <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-[9px] bg-deep-green px-5 py-3.5 text-sm font-semibold text-white hover:bg-ink transition-colors">Prove Your Skills <ArrowRight className="w-4 h-4" /></Link>
+                <Link href="/signup?role=recruiter" className="inline-flex items-center justify-center gap-2 rounded-[9px] border border-border bg-paper px-5 py-3.5 text-sm font-semibold text-ink hover:border-deep-green hover:text-deep-green transition-colors">Explore for Recruiters <ChevronRight className="w-4 h-4" /></Link>
               </div>
-              <div className="flex items-center gap-2 font-mono text-ink">
-                <CheckCircle2 className="w-3.5 h-3.5 text-status-proven shrink-0" />
-                <span>42 commits across 3 repos</span>
-              </div>
+              <div className="mt-10 flex flex-wrap items-center gap-5 text-xs text-muted-text"><span className="inline-flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald" />GitHub-backed signals</span><span className="inline-flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald" />Shareable proof</span></div>
             </div>
+            <div className="relative page-enter [animation-delay:100ms]"><div className="absolute -inset-4 bg-deep-green/5 -z-10 rounded-2xl" /><div className="bg-paper border border-border rounded-xl shadow-card overflow-hidden">
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-9 h-9 rounded-[8px] bg-deep-green flex items-center justify-center text-white"><ShieldCheck className="w-5 h-5" /></div><div><p className="font-heading font-bold text-sm">Evidence report</p><p className="text-xs text-muted-text">Alex Morgan · Software Engineer</p></div></div><span className="text-xs text-emerald font-semibold">LIVE AUDIT</span></div>
+              <div className="px-5 py-5 bg-warm-ivory/60 border-b border-border grid grid-cols-3 gap-4"><div><p className="text-xs text-muted-text">Skills checked</p><p className="font-heading text-2xl font-bold mt-1">14</p></div><div><p className="text-xs text-muted-text">Proven</p><p className="font-heading text-2xl font-bold mt-1 text-emerald">08</p></div><div><p className="text-xs text-muted-text">Repositories</p><p className="font-heading text-2xl font-bold mt-1">05</p></div></div>
+              <div className="p-5"><div className="grid grid-cols-[1fr_auto_1fr] gap-3 px-2 pb-3 text-[11px] font-semibold text-muted-text border-b border-border"><span>Skill</span><span>Status</span><span>Evidence</span></div>{evidenceRows.map((row) => <div key={row.skill} className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start py-4 px-2 border-b border-border last:border-0"><div><p className="font-semibold text-sm">{row.skill}</p><p className="text-[11px] text-muted-text mt-1">{row.detail}</p></div><span className={`text-[10px] tracking-wide font-bold px-2 py-1 rounded-md ${row.tone === "proven" ? "text-status-proven bg-status-proven/10" : row.tone === "partial" ? "text-status-partial bg-status-partial/10" : "text-status-claimed bg-status-claimed/10"}`}>{row.status}</span><div className="text-right"><p className="text-xs font-medium">{row.evidence}</p><p className="text-[11px] text-muted-text mt-1">{row.activity}</p></div></div>)}<Link href="/signup" className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-deep-green hover:text-ink transition-colors">View repository evidence <ArrowRight className="w-3.5 h-3.5" /></Link></div>
+            </div></div>
           </div>
-
-          {/* Partial */}
-          <div className="bg-white border border-border rounded-xl p-6 shadow-subtle">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-3 h-3 rounded-full bg-status-partial"></span>
-              <span className="font-bold text-sm text-status-partial uppercase tracking-wider">
-                Partial
-              </span>
-            </div>
-            <p className="text-sm text-muted-text mb-4">
-              Detected in starter configs or small commits, but lacks test
-              suites, production depth, or recent activity.
-            </p>
-            <div className="bg-warm-ivory/60 border border-border/80 rounded-lg p-3 text-xs space-y-2">
-              <div className="flex items-center gap-2 font-mono text-ink">
-                <CheckCircle2 className="w-3.5 h-3.5 text-status-partial shrink-0" />
-                <span>package.json dependency</span>
-              </div>
-              <div className="flex items-center gap-2 font-mono text-muted-text">
-                <AlertCircle className="w-3.5 h-3.5 text-status-partial shrink-0" />
-                <span>No unit tests / inactive 1yr</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Claimed-only */}
-          <div className="bg-white border border-border rounded-xl p-6 shadow-subtle">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-3 h-3 rounded-full bg-status-claimed"></span>
-              <span className="font-bold text-sm text-status-claimed uppercase tracking-wider">
-                Claimed-Only
-              </span>
-            </div>
-            <p className="text-sm text-muted-text mb-4">
-              Stated prominently on the resume, but zero matching repos, files,
-              or dependencies exist on GitHub.
-            </p>
-            <div className="bg-warm-ivory/60 border border-border/80 rounded-lg p-3 text-xs space-y-2">
-              <div className="flex items-center gap-2 font-mono text-ink">
-                <FileCode2 className="w-3.5 h-3.5 text-muted-text shrink-0" />
-                <span>Listed on Resume (PDF)</span>
-              </div>
-              <div className="flex items-center gap-2 font-mono text-status-claimed">
-                <AlertCircle className="w-3.5 h-3.5 text-status-claimed shrink-0" />
-                <span>0 GitHub references found</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works */}
-      <section id="how-it-works" className="py-16 px-4 sm:px-6 max-w-5xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading">
-            How SkillProof Works
-          </h2>
-          <p className="text-sm sm:text-base text-muted-text mt-2">
-            A 4-step factual audit for career advancement.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-5 bg-white border border-border rounded-xl">
-            <div className="w-8 h-8 rounded bg-soft-surface text-deep-green font-bold text-sm flex items-center justify-center mb-4">
-              01
-            </div>
-            <h3 className="font-bold text-base mb-1">Upload Resume</h3>
-            <p className="text-xs text-muted-text leading-relaxed">
-              Upload your technical resume. Our parser isolates claimed skills,
-              tools, and frameworks.
-            </p>
-          </div>
-
-          <div className="p-5 bg-white border border-border rounded-xl">
-            <div className="w-8 h-8 rounded bg-soft-surface text-deep-green font-bold text-sm flex items-center justify-center mb-4">
-              02
-            </div>
-            <h3 className="font-bold text-base mb-1">Index GitHub</h3>
-            <p className="text-xs text-muted-text leading-relaxed">
-              We inspect language breakdowns, dependencies, commits, Dockerfiles,
-              and test runners.
-            </p>
-          </div>
-
-          <div className="p-5 bg-white border border-border rounded-xl">
-            <div className="w-8 h-8 rounded bg-soft-surface text-deep-green font-bold text-sm flex items-center justify-center mb-4">
-              03
-            </div>
-            <h3 className="font-bold text-base mb-1">Match Against Jobs</h3>
-            <p className="text-xs text-muted-text leading-relaxed">
-              Paste target job descriptions to identify the exact verified skills
-              versus missing gaps.
-            </p>
-          </div>
-
-          <div className="p-5 bg-white border border-border rounded-xl">
-            <div className="w-8 h-8 rounded bg-soft-surface text-deep-green font-bold text-sm flex items-center justify-center mb-4">
-              04
-            </div>
-            <h3 className="font-bold text-base mb-1">Micro-Tasks</h3>
-            <p className="text-xs text-muted-text leading-relaxed">
-              Generate actionable mini-projects to convert &quot;Claimed-only&quot;
-              skills into &quot;Proven&quot; commits.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Example Audit Component */}
-      <section id="example" className="py-12 px-4 sm:px-6 max-w-4xl mx-auto">
-        <div className="bg-white border border-border rounded-2xl p-6 sm:p-8 shadow-card">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-border gap-4">
-            <div>
-              <span className="text-xs font-semibold text-deep-green uppercase tracking-wider">
-                Live Sample Audit
-              </span>
-              <h3 className="text-xl font-bold font-heading mt-1">
-                Candidate: Alex Rivers (@alexrivers)
-              </h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-soft-surface text-xs font-medium rounded-full border border-border">
-                14 Skills Evaluated
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-4">
-            {/* Item 1 */}
-            <div className="p-4 rounded-xl border border-border bg-warm-ivory/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-base">Python</span>
-                  <span className="px-2 py-0.5 text-xs font-semibold rounded bg-status-proven/10 text-status-proven border border-status-proven/20">
-                    Proven
-                  </span>
-                </div>
-                <p className="text-xs text-muted-text mt-1">
-                  12 repos, pyproject.toml, 184 commits, pytest fixtures in
-                  api-gateway
-                </p>
-              </div>
-              <Link
-                href="/signup"
-                className="text-xs font-medium text-deep-green hover:underline flex items-center gap-1"
-              >
-                Inspect signals <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            {/* Item 2 */}
-            <div className="p-4 rounded-xl border border-border bg-warm-ivory/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-base">Docker</span>
-                  <span className="px-2 py-0.5 text-xs font-semibold rounded bg-status-partial/10 text-status-partial border border-status-partial/20">
-                    Partial
-                  </span>
-                </div>
-                <p className="text-xs text-muted-text mt-1">
-                  Dockerfile present in 1 repo; no multi-stage builds or compose
-                  deployments
-                </p>
-              </div>
-              <Link
-                href="/signup"
-                className="text-xs font-medium text-deep-green hover:underline flex items-center gap-1"
-              >
-                Inspect signals <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            {/* Item 3 */}
-            <div className="p-4 rounded-xl border border-border bg-warm-ivory/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-base">Kubernetes</span>
-                  <span className="px-2 py-0.5 text-xs font-semibold rounded bg-status-claimed/10 text-status-claimed border border-status-claimed/20">
-                    Claimed-only
-                  </span>
-                </div>
-                <p className="text-xs text-muted-text mt-1">
-                  Listed under &apos;DevOps Skills&apos; in resume; zero manifests or Helm
-                  charts found
-                </p>
-              </div>
-              <span className="text-xs font-medium text-status-partial bg-status-partial/10 px-2.5 py-1 rounded">
-                Micro-task available
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="py-16 px-4 sm:px-6 max-w-3xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold font-heading text-center mb-8">
-          Frequently Answered Questions
-        </h2>
-        <div className="space-y-4">
-          <div className="bg-white border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-base mb-1">
-              Does SkillProof verify private repositories?
-            </h3>
-            <p className="text-sm text-muted-text leading-relaxed">
-              By default, SkillProof only queries public GitHub data to protect
-              your proprietary work. Private organization verification is not
-              conducted without explicit OAuth authorization.
-            </p>
-          </div>
-
-          <div className="bg-white border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-base mb-1">
-              What if I learned a skill without committing code publicly?
-            </h3>
-            <p className="text-sm text-muted-text leading-relaxed">
-              That skill is catalogued as &quot;Claimed-only&quot;. SkillProof will
-              generate a 1-to-2 hour practical micro-task so you can commit real
-              evidence to your public GitHub profile and convert it to &quot;Proven&quot;.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <Footer />
+        </section>
+        <section id="how-it-works" className="border-y border-border bg-paper"><div className="max-w-6xl mx-auto px-5 sm:px-8 py-16 sm:py-20"><div className="max-w-xl mb-12"><p className="text-sm font-semibold text-deep-green mb-3">A clearer signal</p><h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-[-0.035em]">From claim to confidence.</h2><p className="mt-4 text-muted-text leading-7">A technical audit that follows the evidence, not the adjectives.</p></div><div className="grid md:grid-cols-4 gap-0 border-y border-border">{[{ icon: FileText, title: "Resume claim", text: "Extract the skills you say you use." }, { icon: GitBranch, title: "GitHub evidence", text: "Trace claims to repositories, files, and commits." }, { icon: Search, title: "Skill evaluation", text: "Classify each signal as proven, partial, or claimed." }, { icon: CheckCircle2, title: "Job match", text: "See where your evidence aligns with the role." }].map((step, index) => { const Icon = step.icon; return <div key={step.title} className="relative py-7 md:px-6 first:pl-0 last:pr-0 border-b md:border-b-0 md:border-r last:border-r-0 border-border"><span className="font-mono text-xs text-muted-text">0{index + 1}</span><Icon className="w-5 h-5 text-deep-green mt-7 mb-5" /><h3 className="font-heading font-bold text-lg">{step.title}</h3><p className="text-sm text-muted-text leading-6 mt-2 max-w-[220px]">{step.text}</p></div>; })}</div></div></section>
+        <section id="evidence" className="max-w-6xl mx-auto px-5 sm:px-8 py-20"><div className="grid lg:grid-cols-[0.7fr_1.3fr] gap-12 items-start"><div><p className="text-sm font-semibold text-deep-green mb-3">Built for scrutiny</p><h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-[-0.035em]">Evidence you can point to.</h2><p className="mt-4 text-muted-text leading-7">Every status comes with a trail back to the work: repositories, dependencies, tests, and recent activity.</p><Link href="/signup" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-deep-green hover:text-ink transition-colors">Build your report <ArrowRight className="w-4 h-4" /></Link></div><div className="border-t border-border"><div className="grid grid-cols-[1fr_auto] gap-4 py-5 border-b border-border"><span className="font-heading font-bold">PROVEN</span><span className="text-sm text-muted-text text-right">Code, dependencies, tests, and active work align.</span></div><div className="grid grid-cols-[1fr_auto] gap-4 py-5 border-b border-border"><span className="font-heading font-bold">PARTIAL</span><span className="text-sm text-muted-text text-right">A signal exists, but depth or recency is limited.</span></div><div className="grid grid-cols-[1fr_auto] gap-4 py-5 border-b border-border"><span className="font-heading font-bold">CLAIMED-ONLY</span><span className="text-sm text-muted-text text-right">The resume says it. The public work has not shown it yet.</span></div></div></div></section>
+      </main><Footer />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { ShieldCheck } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-soft-surface/50 text-xs text-muted-text">
+    <footer className="border-t border-border bg-paper text-sm text-muted-text">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand Col */}
@@ -27,7 +27,7 @@ export function Footer() {
 
           {/* Product links */}
           <div>
-            <h4 className="font-semibold text-ink uppercase tracking-wider text-[11px] mb-3">
+            <h4 className="font-semibold text-ink mb-3">
               Product
             </h4>
             <ul className="space-y-2">
@@ -56,7 +56,7 @@ export function Footer() {
 
           {/* Legal / Policy links */}
           <div>
-            <h4 className="font-semibold text-ink uppercase tracking-wider text-[11px] mb-3">
+            <h4 className="font-semibold text-ink mb-3">
               Trust & Legal
             </h4>
             <ul className="space-y-2">

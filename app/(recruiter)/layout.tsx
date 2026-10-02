@@ -38,18 +38,18 @@ export default async function RecruiterLayout({
   return (
     <div className="min-h-screen bg-warm-ivory text-ink flex">
       {/* Recruiter Sidebar */}
-      <aside className="w-64 border-r border-border bg-white flex flex-col justify-between hidden md:flex shrink-0">
+      <aside className="w-56 border-r border-border bg-paper flex flex-col justify-between hidden md:flex shrink-0">
         <div>
-          <div className="p-6 border-b border-border flex items-center justify-between">
+          <div className="p-5 border-b border-border flex items-center justify-between">
             <Link href="/recruiter/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-deep-green flex items-center justify-center text-white">
+              <div className="w-8 h-8 rounded-[9px] bg-deep-green flex items-center justify-center text-white">
                 <ShieldCheck className="w-5 h-5 text-emerald" />
               </div>
               <div>
                 <span className="font-bold text-base font-heading block leading-none">
                   SkillProof
                 </span>
-                <span className="text-[10px] text-muted-text font-mono uppercase tracking-wider">
+                <span className="text-[10px] text-muted-text font-mono tracking-wide">
                   Recruiter Workspace
                 </span>
               </div>
@@ -57,7 +57,7 @@ export default async function RecruiterLayout({
           </div>
 
           {/* Org details banner */}
-          <div className="mx-4 mt-4 p-3 bg-soft-surface/60 border border-border rounded-lg flex items-center gap-2.5">
+          <div className="mx-4 mt-4 p-3 bg-warm-ivory border border-border rounded-[9px] flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-md bg-white border border-border flex items-center justify-center text-deep-green">
               <Building2 className="w-4 h-4" />
             </div>
@@ -69,17 +69,17 @@ export default async function RecruiterLayout({
             </div>
           </div>
 
-          <nav className="p-4 space-y-1.5 mt-2">
+          <nav className="p-3 space-y-1 mt-2">
             <Link
               href="/recruiter/dashboard"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium text-ink hover:bg-soft-surface transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm font-medium text-ink hover:bg-soft-surface transition-colors"
             >
               <Users className="w-4 h-4 text-deep-green" />
               Verified Candidates
             </Link>
             <Link
               href="/recruiter/jobs"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium text-ink hover:bg-soft-surface transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm font-medium text-ink hover:bg-soft-surface transition-colors"
             >
               <Briefcase className="w-4 h-4 text-deep-green" />
               Job Matches & JDs
@@ -109,17 +109,15 @@ export default async function RecruiterLayout({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-border bg-white flex items-center justify-between px-6 md:px-8">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-status-proven"></span>
-            <span className="text-xs font-medium text-muted-text">
-              Live GitHub Codebase Verification Active
-            </span>
+        <header className="h-16 border-b border-border bg-paper flex items-center justify-between px-5 md:px-8">
+          <div>
+            <p className="font-heading font-bold text-sm text-ink">Recruiter workspace</p>
+            <p className="text-xs text-muted-text hidden sm:block">Evidence-led candidate review</p>
           </div>
-          <div className="flex items-center gap-3" />
+          <span className="text-xs font-medium text-deep-green bg-deep-green/8 px-2.5 py-1 rounded-md">Recruiter</span>
         </header>
 
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-5 md:p-8 max-w-7xl w-full mx-auto page-enter">
           {children}
         </main>
       </div>

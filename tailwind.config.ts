@@ -9,18 +9,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#17201C",
-        "deep-green": "#1F5C48",
-        emerald: "#2E8B6F",
-        "warm-ivory": "#F7F5EF",
-        "soft-surface": "#EEECE5",
-        "muted-text": "#69716C",
-        border: "#D9DDD7",
+        ink: "#F5F7FB",
+        "deep-green": "#2F6BFF",
+        emerald: "#27C281",
+        tangerine: "#FF7A3D",
+        "warm-ivory": "#0B1020",
+        "soft-surface": "#182235",
+        paper: "#111827",
+        "muted-text": "#9AA7B8",
+        border: "#28354A",
         status: {
-          proven: "#2E8B6F",
-          partial: "#C58A24",
-          claimed: "#8A6255",
-          error: "#B94A48",
+          proven: "#27C281",
+          partial: "#F2B84B",
+          claimed: "#F05D5E",
+          error: "#F05D5E",
         },
       },
       fontFamily: {
@@ -33,8 +35,8 @@ const config: Config = {
         sm: "10px",
       },
       boxShadow: {
-        subtle: "0 1px 3px 0 rgba(23, 32, 28, 0.05)",
-        card: "0 4px 12px 0 rgba(23, 32, 28, 0.04)",
+        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.24)",
+        card: "0 12px 32px 0 rgba(0, 0, 0, 0.28)",
       },
     },
   },

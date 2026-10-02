@@ -13,11 +13,11 @@ export function Navbar({ userEmail }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-warm-ivory/80 backdrop-blur-md">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-warm-ivory/95">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 h-[72px] flex items-center justify-between">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-deep-green flex items-center justify-center text-white transition-transform group-hover:scale-105">
+          <div className="w-8 h-8 rounded-[8px] bg-deep-green flex items-center justify-center text-white transition-colors group-hover:bg-ink">
             <ShieldCheck className="w-5 h-5 text-emerald" />
           </div>
           <span className="text-lg font-bold tracking-tight font-heading text-ink">
@@ -26,18 +26,15 @@ export function Navbar({ userEmail }: NavbarProps) {
         </Link>
 
         {/* Desktop Links */}
-        <nav className="hidden md:flex items-center gap-7 text-sm text-muted-text font-medium">
+        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-text font-medium">
           <Link href="/#how-it-works" className="hover:text-ink transition-colors">
             How It Works
           </Link>
           <Link href="/#evidence" className="hover:text-ink transition-colors">
-            Evidence Engine
+            Evidence
           </Link>
-          <Link href="/#example" className="hover:text-ink transition-colors">
-            Sample Audit
-          </Link>
-          <Link href="/#faq" className="hover:text-ink transition-colors">
-            FAQ
+          <Link href="/signup?role=recruiter" className="hover:text-ink transition-colors">
+            For Recruiters
           </Link>
         </nav>
 
@@ -46,7 +43,7 @@ export function Navbar({ userEmail }: NavbarProps) {
           {userEmail ? (
             <Link href="/dashboard">
               <Button size="sm">
-                Dashboard
+                Open workspace
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </Link>
@@ -59,7 +56,7 @@ export function Navbar({ userEmail }: NavbarProps) {
               </Link>
               <Link href="/signup">
                 <Button size="sm">
-                  Verify Skills
+                  Prove your skills
                 </Button>
               </Link>
             </>
@@ -92,21 +89,14 @@ export function Navbar({ userEmail }: NavbarProps) {
             onClick={() => setMobileMenuOpen(false)}
             className="block py-1.5 text-sm font-medium text-ink"
           >
-            Evidence Engine
+            Evidence
           </Link>
           <Link
-            href="/#example"
+            href="/signup?role=recruiter"
             onClick={() => setMobileMenuOpen(false)}
             className="block py-1.5 text-sm font-medium text-ink"
           >
-            Sample Audit
-          </Link>
-          <Link
-            href="/#faq"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-ink"
-          >
-            FAQ
+            For Recruiters
           </Link>
           <div className="pt-3 border-t border-border flex flex-col gap-2">
             {userEmail ? (
@@ -121,7 +111,7 @@ export function Navbar({ userEmail }: NavbarProps) {
                   </Button>
                 </Link>
                 <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full">Verify Skills</Button>
+                  <Button className="w-full">Prove your skills</Button>
                 </Link>
               </>
             )}

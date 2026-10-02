@@ -68,8 +68,8 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
 
   return (
     <aside
-      className={`relative border-r border-border bg-white flex flex-col justify-between transition-all duration-300 shrink-0 ${
-        collapsed ? "w-20" : "w-64"
+      className={`relative border-r border-border bg-paper flex flex-col justify-between transition-all duration-300 shrink-0 ${
+        collapsed ? "w-16 md:w-20" : "w-16 md:w-56"
       }`}
     >
       {/* Collapse Toggle Button */}
@@ -77,7 +77,7 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
         type="button"
         onClick={() => setCollapsed(!collapsed)}
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute -right-3.5 top-6 w-7 h-7 rounded-full bg-white border border-border shadow-subtle flex items-center justify-center text-muted-text hover:text-ink hover:bg-soft-surface transition-colors z-20 cursor-pointer"
+        className="hidden md:flex absolute -right-3.5 top-5 w-7 h-7 rounded-full bg-paper border border-border shadow-subtle items-center justify-center text-muted-text hover:text-ink hover:bg-soft-surface transition-colors z-20 cursor-pointer"
       >
         {collapsed ? (
           <ChevronRight className="w-4 h-4 text-deep-green" />
@@ -88,18 +88,18 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
 
       <div>
         {/* Brand Header */}
-        <div className={`p-5 border-b border-border flex items-center ${collapsed ? "justify-center" : "gap-2.5"}`}>
+        <div className={`p-4 border-b border-border flex items-center ${collapsed ? "justify-center" : "justify-center md:justify-start md:gap-2.5"}`}>
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-lg bg-deep-green flex items-center justify-center text-white shrink-0 transition-transform group-hover:scale-105">
+            <div className="w-9 h-9 rounded-[9px] bg-deep-green flex items-center justify-center text-white shrink-0 transition-colors group-hover:bg-ink">
               <ShieldCheck className="w-5 h-5 text-emerald" />
             </div>
             {!collapsed && (
-              <div>
+              <div className="hidden md:block">
                 <span className="font-bold text-base font-heading block leading-none text-ink">
                   SkillProof
                 </span>
-                <span className="text-[10px] text-muted-text font-mono uppercase tracking-wider">
-                  Dev Portal
+                  <span className="text-[10px] text-muted-text font-mono tracking-wide">
+                  Candidate workspace
                 </span>
               </div>
             )}
@@ -107,10 +107,10 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
         </div>
 
         {/* Navigation Links */}
-        <nav className="p-3 space-y-1 mt-2">
+        <nav className="p-2 md:p-3 space-y-1 mt-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href.split("#")[0];
 
             return (
               <Link
@@ -119,7 +119,7 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
                 prefetch={false}
                 title={collapsed ? item.label : undefined}
                 className={`flex items-center rounded-lg transition-colors text-xs font-semibold ${
-                  collapsed ? "justify-center px-0 py-3" : "gap-3 px-3.5 py-2.5"
+                  collapsed ? "justify-center px-0 py-3" : "justify-center md:justify-start gap-3 px-0 md:px-3.5 py-3 md:py-2.5"
                 } ${
                   isActive
                     ? "bg-deep-green text-white shadow-subtle"
@@ -127,7 +127,7 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
                 }`}
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-emerald" : "text-deep-green"}`} />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span className="hidden md:inline">{item.label}</span>}
               </Link>
             );
           })}
@@ -143,7 +143,7 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
               }`}
             >
               <ExternalLink className="w-4 h-4 shrink-0 text-muted-text" />
-              {!collapsed && <span>Public Proof URL</span>}
+              {!collapsed && <span className="hidden md:inline">Public Proof URL</span>}
             </Link>
           )}
         </nav>
@@ -152,7 +152,7 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
       {/* User Footer & Signout */}
       <div className={`p-4 border-t border-border flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
         {!collapsed && (
-          <div className="truncate max-w-36">
+          <div className="hidden md:block truncate max-w-36">
             <p className="text-xs font-bold text-ink truncate">
               {fullName || "Candidate"}
             </p>

@@ -1,238 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  FolderGit2,
-  ExternalLink,
-  Check,
-  X,
-  Share2,
-  ArrowLeft,
-  Loader2,
-} from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, ArrowRight, ExternalLink, FolderGit2, Loader2, Share2 } from "lucide-react";
 import { useDashboard } from "@/context/dashboard-context";
 
-interface MatchedRepo {
-  name: string;
-  url: string;
-  last_commit_at?: string;
-  has_tests?: boolean;
-}
+type Filter = "all" | "proven" | "partial" | "claimed";
 
 export default function EvidenceMatrixPage() {
-  const { profile, evidenceList, loading } = useDashboard();
+  const { profile, resumeSkills, evidenceList, loading } = useDashboard();
+  const [filter, setFilter] = useState<Filter>("all");
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
 
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="flex items-center gap-3 text-muted-text text-sm">
-          <Loader2 className="w-5 h-5 animate-spin text-deep-green" />
-          Loading evidence matrix...
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex h-96 items-center justify-center gap-3 text-sm text-muted-text"><Loader2 className="w-5 h-5 animate-spin text-deep-green" />Loading your evidence report...</div>;
 
-  const proven = evidenceList.filter((e) => e.status === "proven");
-  const partial = evidenceList.filter((e) => e.status === "partial");
-  const claimed = evidenceList.filter((e) => e.status === "claimed");
+  const rows = resumeSkills.map((claim) => evidenceList.find((item) => item.skill_name.toLowerCase() === claim.skill_name.toLowerCase()) || { id: claim.id, skill_name: claim.skill_name, status: "claimed" as const, confidence_score: 0, evidence_summary: "This skill is listed on your resume but has not been evaluated against a repository yet.", matched_repos: [] });
+  const filtered = rows.filter((row) => filter === "all" || row.status === filter);
+  const selected = rows.find((row) => row.skill_name === selectedSkill);
 
-  return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link
-              href="/dashboard"
-              prefetch={false}
-              className="text-xs text-muted-text hover:text-ink flex items-center gap-1 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
-            </Link>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-heading text-ink flex items-center gap-2.5">
-            <ShieldCheck className="w-7 h-7 text-deep-green" />
-            Evidence Matrix
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-text mt-1">
-            Deterministic audit trail connecting claimed technical skills to physical GitHub repositories.
-          </p>
-        </div>
-
-        {profile?.share_slug && (
-          <Link
-            href={`/v/${profile.share_slug}`}
-            target="_blank"
-            className="px-4 py-2 border border-border bg-white text-xs font-semibold rounded-lg hover:bg-soft-surface transition-colors flex items-center gap-1.5 shadow-subtle w-fit"
-          >
-            <Share2 className="w-3.5 h-3.5 text-deep-green" />
-            View Public Proof Link
-          </Link>
-        )}
-      </div>
-
-      {/* Tiers Summary Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-status-proven/5 border border-status-proven/20 rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-status-proven/10 flex items-center justify-center text-status-proven">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-status-proven uppercase">Proven Tier</p>
-              <p className="text-lg font-bold text-ink">{proven.length} Skills</p>
-            </div>
-          </div>
-          <span className="text-[11px] font-mono text-muted-text">Tested Code</span>
-        </div>
-
-        <div className="p-4 bg-status-partial/5 border border-status-partial/20 rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-status-partial/10 flex items-center justify-center text-status-partial">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-status-partial uppercase">Partial Tier</p>
-              <p className="text-lg font-bold text-ink">{partial.length} Skills</p>
-            </div>
-          </div>
-          <span className="text-[11px] font-mono text-muted-text">Config Only / Inactive</span>
-        </div>
-
-        <div className="p-4 bg-status-claimed/5 border border-status-claimed/20 rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-status-claimed/10 flex items-center justify-center text-status-claimed">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-status-claimed uppercase">Claimed Tier</p>
-              <p className="text-lg font-bold text-ink">{claimed.length} Skills</p>
-            </div>
-          </div>
-          <span className="text-[11px] font-mono text-muted-text">0 Code Found</span>
-        </div>
-      </div>
-
-      {/* Evidence Cards */}
-      <div className="space-y-6">
-        {evidenceList.length === 0 ? (
-          <div className="p-12 bg-white border border-dashed border-border rounded-xl text-center">
-            <ShieldCheck className="w-10 h-10 text-muted-text/40 mx-auto mb-3" />
-            <h3 className="text-sm font-bold text-ink">No skills evaluated yet</h3>
-            <p className="text-xs text-muted-text max-w-sm mx-auto mt-1">
-              Go to your Verification Hub and click &ldquo;Evaluate Evidence&rdquo; to cross-reference your resume against your GitHub profile.
-            </p>
-            <Link
-              href="/dashboard"
-              prefetch={false}
-              className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold text-deep-green hover:underline"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
-        ) : (
-          evidenceList.map((item) => {
-            const matchedRepos = ((item as { matched_repos?: MatchedRepo[] }).matched_repos || []) as MatchedRepo[];
-
-            return (
-              <div
-                key={item.id}
-                className="bg-white border border-border rounded-xl p-6 shadow-subtle space-y-4"
-              >
-                {/* Card Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
-                  <div className="flex items-center gap-3">
-                    <span className="text-base font-bold text-ink">{item.skill_name}</span>
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        item.status === "proven"
-                          ? "bg-status-proven/10 text-status-proven"
-                          : item.status === "partial"
-                          ? "bg-status-partial/10 text-status-partial"
-                          : "bg-status-claimed/10 text-status-claimed"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-text">Confidence Metric:</span>
-                    <span className="font-mono font-bold text-xs text-ink">
-                      {Math.round(Number(item.confidence_score) * 100)}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Evidence Summary Text */}
-                {item.evidence_summary && (
-                  <p className="text-xs text-muted-text leading-relaxed">
-                    {item.evidence_summary}
-                  </p>
-                )}
-
-                {/* Matched Repositories Sub-Table */}
-                {matchedRepos.length > 0 && (
-                  <div className="space-y-2 pt-2">
-                    <span className="text-[11px] font-semibold text-ink uppercase tracking-wider block">
-                      Matched Source Repositories ({matchedRepos.length})
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {matchedRepos.map((repo, idx) => (
-                        <div
-                          key={idx}
-                          className="p-3 bg-soft-surface/50 border border-border rounded-lg text-xs flex items-center justify-between gap-3"
-                        >
-                          <div className="truncate">
-                            <a
-                              href={repo.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-semibold text-ink hover:text-deep-green flex items-center gap-1.5 truncate group"
-                            >
-                              <FolderGit2 className="w-3.5 h-3.5 text-deep-green shrink-0" />
-                              <span className="truncate">{repo.name}</span>
-                              <ExternalLink className="w-3 h-3 opacity-40 group-hover:opacity-100 shrink-0" />
-                            </a>
-                            <p className="text-[10px] text-muted-text mt-0.5">
-                              {repo.last_commit_at
-                                ? `Active ${new Date(repo.last_commit_at).toLocaleDateString()}`
-                                : "Commit date unavailable"}
-                            </p>
-                          </div>
-
-                          <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-1 shrink-0 ${
-                              repo.has_tests
-                                ? "bg-status-proven/10 text-status-proven"
-                                : "bg-soft-surface text-muted-text border border-border"
-                            }`}
-                          >
-                            {repo.has_tests ? (
-                              <>
-                                <Check className="w-3 h-3 stroke-[2.5]" /> Tests
-                              </>
-                            ) : (
-                              <>
-                                <X className="w-3 h-3" /> No tests
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
+  return <div className="space-y-8 page-enter">
+    <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-7 border-b border-border"><div><Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-muted-text hover:text-ink mb-4"><ArrowLeft className="w-3.5 h-3.5" />Back to dashboard</Link><p className="text-sm font-semibold text-deep-green mb-2">Skill claims to evidence</p><h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-[-0.04em]">Your evidence report</h1><p className="text-sm text-muted-text mt-2 max-w-xl">See exactly why each resume claim is proven, partial, or still unsupported.</p></div>{profile?.share_slug && <Link href={`/v/${profile.share_slug}`} target="_blank" className="inline-flex items-center gap-2 text-sm font-semibold text-deep-green"><Share2 className="w-4 h-4" />Share report</Link>}</header>
+    <div className="flex flex-wrap gap-2">{(["all", "proven", "partial", "claimed"] as Filter[]).map((item) => <button key={item} type="button" onClick={() => setFilter(item)} className={`px-3 py-2 rounded-sm border text-sm font-medium transition-colors ${filter === item ? "bg-deep-green text-white border-deep-green" : "bg-paper border-border text-muted-text hover:text-ink"}`}>{item === "claimed" ? "Claimed-only" : item.charAt(0).toUpperCase() + item.slice(1)}</button>)}</div>
+    {!rows.length ? <div className="border border-border bg-paper p-8 sm:p-12"><h2 className="font-heading text-xl font-bold">Your evidence report is not ready yet.</h2><p className="text-sm text-muted-text mt-2 max-w-lg">Upload your resume and connect GitHub. SkillProof will compare your claimed skills with evidence from your public work.</p><Link href="/onboarding" className="inline-flex items-center gap-2 mt-5 text-sm font-semibold text-deep-green">Start analysis <ArrowRight className="w-4 h-4" /></Link></div> : <div className="border-y border-border bg-paper overflow-x-auto"><table className="w-full min-w-170 text-left text-sm"><thead className="border-b border-border text-xs text-muted-text"><tr><th className="py-3 px-4 font-medium">Skill</th><th className="py-3 px-4 font-medium">Resume claim</th><th className="py-3 px-4 font-medium">Evidence</th><th className="py-3 px-4 font-medium">Status</th><th className="py-3 px-4 font-medium">Open</th></tr></thead><tbody className="divide-y divide-border">{filtered.map((row) => <tr key={row.id} className="hover:bg-warm-ivory/60"><td className="py-4 px-4 font-semibold">{row.skill_name}</td><td className="py-4 px-4 text-muted-text max-w-55">Resume skill claim</td><td className="py-4 px-4 text-muted-text">{row.matched_repos?.length ? `${row.matched_repos.length} ${row.matched_repos.length === 1 ? "repository" : "repositories"}` : "No supporting evidence"}</td><td className="py-4 px-4"><span className={`text-[10px] font-bold tracking-wide px-2 py-1 rounded-md ${row.status === "proven" ? "bg-status-proven/10 text-status-proven" : row.status === "partial" ? "bg-status-partial/10 text-status-partial" : "bg-status-claimed/10 text-status-claimed"}`}>{row.status === "claimed" ? "CLAIMED-ONLY" : row.status.toUpperCase()}</span></td><td className="py-4 px-4"><button type="button" onClick={() => setSelectedSkill(selectedSkill === row.skill_name ? null : row.skill_name)} className="text-deep-green font-semibold text-xs">{selectedSkill === row.skill_name ? "Close" : "View evidence"}</button></td></tr>)}</tbody></table></div>}
+    {selected && <section className="border border-border bg-paper p-5 sm:p-7"><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4"><div><p className="text-sm font-semibold text-deep-green">{selected.status.toUpperCase()}</p><h2 className="font-heading text-2xl font-bold mt-1">{selected.skill_name}</h2></div><p className="text-sm text-muted-text">Confidence {Math.round(Number(selected.confidence_score) * 100)}%</p></div><div className="mt-6 grid lg:grid-cols-[0.8fr_1.2fr] gap-8"><div><h3 className="text-sm font-semibold">Why this status</h3><p className="text-sm text-muted-text leading-6 mt-2">{selected.evidence_summary || "No explanation was stored for this result."}</p></div><div><h3 className="text-sm font-semibold">Evidence sources</h3>{selected.matched_repos?.length ? <div className="mt-3 space-y-2">{selected.matched_repos.map((repo) => <div key={repo.url} className="flex items-center justify-between gap-3 border-b border-border py-3"><div className="min-w-0"><a href={repo.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold hover:text-deep-green truncate"><FolderGit2 className="w-4 h-4 text-deep-green shrink-0" />{repo.name}<ExternalLink className="w-3 h-3 shrink-0" /></a><p className="text-xs text-muted-text mt-1">{repo.last_commit_at ? `Recent activity ${new Date(repo.last_commit_at).toLocaleDateString()}` : "Commit activity unavailable"}</p></div><span className="text-xs text-muted-text">{repo.has_tests ? "Tests detected" : "No tests detected"}</span></div>)}</div> : <p className="text-sm text-muted-text mt-2">No repositories matched this claim. No repository evidence is available to show.</p>}</div></div></section>}
+  </div>;
 }

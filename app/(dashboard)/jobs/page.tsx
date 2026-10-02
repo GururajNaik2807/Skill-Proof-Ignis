@@ -11,8 +11,6 @@ import {
   Clock,
   Layers,
   ArrowLeft,
-  Loader2,
-  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -76,10 +74,10 @@ export default function JobMatchPage() {
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold font-heading text-ink flex items-center gap-2.5">
           <Briefcase className="w-7 h-7 text-deep-green" />
-          Job Description Matcher
+            How does your experience fit this job?
         </h1>
         <p className="text-xs sm:text-sm text-muted-text mt-1">
-          Paste any software engineering job description to evaluate your verified code footprint against their required technical stack.
+          Paste a job description and compare its requirements with your verified skills and evidence.
         </p>
       </div>
 
@@ -95,7 +93,7 @@ export default function JobMatchPage() {
         <form onSubmit={handleMatch} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-              Target Position (Optional)
+              Job title (Optional)
             </label>
             <input
               type="text"
@@ -108,14 +106,14 @@ export default function JobMatchPage() {
 
           <div>
             <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-              Paste Raw Job Description
+              Job description
             </label>
             <textarea
               rows={6}
               required
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
-              placeholder="Paste the qualifications, requirements, and tech stack here..."
+              placeholder="Paste the job description..."
               className="w-full p-3.5 bg-soft-surface/50 border border-border rounded-lg text-xs focus:outline-none focus:border-deep-green text-ink font-mono leading-relaxed"
             />
           </div>
@@ -123,7 +121,7 @@ export default function JobMatchPage() {
           <div className="flex justify-end">
             <Button type="submit" loading={loading} className="gap-2">
               <Sparkles className="w-4 h-4" />
-              Evaluate Code Alignment
+              Analyze Job
             </Button>
           </div>
         </form>
@@ -149,7 +147,7 @@ export default function JobMatchPage() {
             <div className="flex items-center gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-border">
               <div className="text-right">
                 <span className="text-[10px] text-muted-text uppercase font-semibold block">
-                  Evidence Match
+                  Job Match
                 </span>
                 <span className="text-3xl font-bold font-heading text-deep-green">
                   {report.match_percentage}%
@@ -235,7 +233,7 @@ export default function JobMatchPage() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-ink">
-                  Close These Gaps Before You Apply
+                  Skills to strengthen
                 </h3>
                 <p className="text-xs text-muted-text mt-0.5 max-w-xl">
                   Turn missing or partial skills into proven GitHub evidence with tailored 1–2 hour micro-tasks.

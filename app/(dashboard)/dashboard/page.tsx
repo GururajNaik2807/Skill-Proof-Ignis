@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   CheckCircle2,
@@ -55,6 +56,7 @@ interface SkillEvidence {
   status: "proven" | "partial" | "claimed";
   confidence_score: number;
   evidence_summary: string | null;
+  matched_repos?: { name: string; url: string; has_tests: boolean; last_commit_at: string | null }[];
 }
 
 interface MicroTask {
@@ -70,6 +72,7 @@ interface Profile {
   id: string;
   full_name: string | null;
   github_username: string | null;
+  avatar_url?: string | null;
   target_role: string | null;
   share_slug: string | null;
   last_scan_at: string | null;
@@ -128,7 +131,7 @@ export default function DashboardPage() {
       ] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, full_name, github_username, target_role, share_slug, last_scan_at, last_parse_at")
+          .select("id, full_name, github_username, avatar_url, target_role, share_slug, last_scan_at, last_parse_at")
           .eq("id", user.id)
           .single(),
         supabase
@@ -263,7 +266,7 @@ export default function DashboardPage() {
 
   // Action: Local State Optimistic Update + Cache Sync
   const handleToggleTaskStatus = async (taskId: string, currentStatus: MicroTask["status"]) => {
-    const nextStatus =
+    const nextStatus: MicroTask["status"] =
       currentStatus === "todo"
         ? "in_progress"
         : currentStatus === "in_progress"
@@ -311,40 +314,41 @@ export default function DashboardPage() {
     const matchesTest = filterWithTests ? repo.has_tests : true;
     return matchesSearch && matchesTest;
   });
+  const isAnalysisActive = isScanningRepos || isParsingResume || isEvaluating;
 
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="flex items-center gap-3 text-muted-text text-sm">
           <Loader2 className="w-5 h-5 animate-spin text-deep-green" />
-          Loading your verification hub...
+          Loading your evidence workspace...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-8 page-enter">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
         <div>
-          <div className="flex items-center gap-2">
+          <div>
             <h1 className="text-2xl sm:text-3xl font-bold font-heading text-ink">
-              Verification Hub
+              Your SkillProof
             </h1>
-            <span className="px-2 py-0.5 rounded bg-deep-green/10 text-deep-green text-xs font-semibold font-mono">
-              Candidate View
-            </span>
+            <p className="text-sm text-muted-text mt-2">
+              Evidence collected from your resume and public work.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-muted-text mt-1">
-            Auditing codebase signals for{" "}
+          <div className="flex items-center gap-2 text-sm text-muted-text mt-2">
+            {profile?.avatar_url ? <Image src={profile.avatar_url} alt="" width={24} height={24} className="w-6 h-6 rounded-full" /> : null}
             <span className="font-semibold text-ink">{profile?.full_name || "Candidate"}</span>
             {profile?.github_username && (
               <span className="ml-2 font-mono text-xs bg-soft-surface px-2 py-0.5 rounded border border-border inline-flex items-center gap-1">
                 <GitBranch className="w-3 h-3 text-deep-green" /> @{profile.github_username}
               </span>
             )}
-          </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -403,6 +407,17 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {isAnalysisActive && <section className="border border-border bg-paper rounded-[10px] p-5 sm:p-6"><p className="text-sm font-semibold text-deep-green mb-4">Analysis in progress</p><div className="grid sm:grid-cols-2 gap-3">{[{ label: "Reading resume", done: resumeSkills.length > 0 }, { label: "Extracting technical claims", done: resumeSkills.length > 0 }, { label: "Inspecting GitHub repositories", done: repositories.length > 0 && !isScanningRepos }, { label: "Checking dependencies and tests", done: repositories.length > 0 && !isScanningRepos }, { label: "Evaluating evidence", done: evidenceList.length > 0 && !isEvaluating }].map((step) => <div key={step.label} className="flex items-center gap-3 text-sm"><span className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs ${step.done ? "bg-status-proven/10 border-status-proven text-status-proven" : "border-border text-muted-text"}`}>{step.done ? "✓" : "·"}</span><span className={step.done ? "text-ink" : "text-muted-text"}>{step.label}</span></div>)}</div></section>}
+
+      <section className="border border-border bg-paper rounded-[10px] p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-[8px] bg-deep-green/10 text-deep-green flex items-center justify-center shrink-0"><ArrowRight className="w-4 h-4" /></div>
+          <div className="flex-1"><p className="text-sm font-semibold text-deep-green">Next step</p>
+            {!profile?.github_username ? <><h2 className="font-heading text-xl font-bold mt-1">Connect GitHub</h2><p className="text-sm text-muted-text mt-1">Link your public profile so SkillProof can inspect repositories, dependencies, and tests.</p><Link href="/onboarding#github" className="inline-flex mt-4 items-center gap-2 text-sm font-semibold text-deep-green hover:text-ink">Connect GitHub <ArrowRight className="w-4 h-4" /></Link></> : resumeSkills.length === 0 ? <><h2 className="font-heading text-xl font-bold mt-1">Upload your resume</h2><p className="text-sm text-muted-text mt-1">Your resume gives SkillProof the claims to compare against your public work.</p><Link href="/onboarding#resume" className="inline-flex mt-4 items-center gap-2 text-sm font-semibold text-deep-green hover:text-ink">Upload your resume <ArrowRight className="w-4 h-4" /></Link></> : repositories.length === 0 ? <><h2 className="font-heading text-xl font-bold mt-1">Scan your GitHub</h2><p className="text-sm text-muted-text mt-1">Your profile is connected. Inspect its public repositories, dependencies, and tests now.</p><button type="button" onClick={handleScanRepos} disabled={isScanningRepos} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-deep-green hover:text-ink disabled:opacity-50">{isScanningRepos ? "Scanning..." : "Scan repositories"} <ArrowRight className="w-4 h-4" /></button></> : evidenceList.length === 0 ? <><h2 className="font-heading text-xl font-bold mt-1">Evaluate your evidence</h2><p className="text-sm text-muted-text mt-1">Your resume claims and repository scan are ready to compare.</p><button type="button" onClick={handleEvaluateEvidence} disabled={isEvaluating} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-deep-green hover:text-ink disabled:opacity-50">{isEvaluating ? "Evaluating..." : "Evaluate evidence"} <ArrowRight className="w-4 h-4" /></button></> : <><h2 className="font-heading text-xl font-bold mt-1">Analyze a job description</h2><p className="text-sm text-muted-text mt-1">See how your verified experience fits a role and identify the next skill gap.</p><Link href="/jobs" className="inline-flex mt-4 items-center gap-2 text-sm font-semibold text-deep-green hover:text-ink">Analyze a job <ArrowRight className="w-4 h-4" /></Link></>}
+          </div>
+        </div>
+      </section>
+
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 bg-white border border-border rounded-xl shadow-subtle flex flex-col justify-between">
@@ -444,6 +459,41 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <section className="py-1">
+        <div className="flex items-center justify-between mb-3"><p className="text-sm font-semibold text-ink">Your verification path</p><span className="text-xs text-muted-text">Based on your current data</span></div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {[{ label: "Resume", done: resumeSkills.length > 0 }, { label: "GitHub", done: repositories.length > 0 }, { label: "Skill claims", done: resumeSkills.length > 0 }, { label: "Evidence", done: evidenceList.length > 0 }, { label: "Verification", done: evidenceList.length > 0 }, { label: "Job match", done: false }, { label: "Skill gaps", done: evidenceList.some((item) => item.status !== "proven") }, { label: "Micro-task", done: tasks.length > 0 }].map((step) => <div key={step.label} className={`border-l-2 px-3 py-2 ${step.done ? "border-status-proven" : "border-border"}`}><p className={`text-xs font-semibold ${step.done ? "text-status-proven" : "text-muted-text"}`}>{step.done ? "Complete" : "Next"}</p><p className="text-sm font-medium text-ink mt-1">{step.label}</p></div>)}
+        </div>
+      </section>
+
+      <section className="border-y border-border bg-paper">
+        <div className="px-0 sm:px-1 py-5 flex items-end justify-between gap-4">
+          <div><p className="text-sm font-semibold text-deep-green">Evidence summary</p><p className="text-xs text-muted-text mt-1">Each claim is matched against public repository signals.</p></div>
+          <Link href="/matrix" className="text-xs font-semibold text-deep-green hover:text-ink">Open full matrix <ArrowRight className="inline w-3.5 h-3.5 ml-1" /></Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[620px] text-left text-sm">
+            <thead className="border-y border-border text-xs text-muted-text">
+              <tr><th className="py-3 pr-4 font-medium">Skill</th><th className="py-3 px-4 font-medium">Status</th><th className="py-3 px-4 font-medium">Evidence</th><th className="py-3 pl-4 font-medium text-right">Last activity</th></tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {resumeSkills.length === 0 ? <tr><td colSpan={4} className="py-8 text-muted-text">Upload a resume to build your evidence summary.</td></tr> : resumeSkills.map((skill) => {
+                const evidence = evidenceList.find((item) => item.skill_name.toLowerCase() === skill.skill_name.toLowerCase());
+                const matchedRepos = evidence ? ((evidence as SkillEvidence & { matched_repos?: Repository[] }).matched_repos || []) : [];
+                const lastActivity = matchedRepos[0]?.last_commit_at ? new Date(matchedRepos[0].last_commit_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—";
+                const status = evidence?.status || "claimed";
+                return <tr key={skill.id} className="hover:bg-warm-ivory/60 transition-colors"><td className="py-4 pr-4 font-semibold">{skill.skill_name}</td><td className="py-4 px-4"><span className={`text-[10px] font-bold tracking-wide px-2 py-1 rounded-md ${status === "proven" ? "text-status-proven bg-status-proven/10" : status === "partial" ? "text-status-partial bg-status-partial/10" : "text-status-claimed bg-status-claimed/10"}`}>{status === "claimed" ? "CLAIMED-ONLY" : status.toUpperCase()}</span></td><td className="py-4 px-4 text-muted-text">{matchedRepos.length ? `${matchedRepos.length} ${matchedRepos.length === 1 ? "repository" : "repositories"}` : "No supporting evidence"}</td><td className="py-4 pl-4 text-right text-muted-text">{lastActivity}</td></tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-end justify-between mb-4"><div><p className="text-sm font-semibold text-deep-green">Skills needing attention</p><p className="text-sm text-muted-text mt-1">The claims with the clearest next action.</p></div><Link href="/tasks" className="text-xs font-semibold text-deep-green hover:text-ink">View micro-tasks <ArrowRight className="inline w-3.5 h-3.5 ml-1" /></Link></div>
+        {evidenceList.filter((item) => item.status !== "proven").length === 0 ? <div className="border-y border-border py-5 text-sm text-muted-text">All analyzed skills currently have supporting evidence.</div> : <div className="border-y border-border divide-y divide-border">{evidenceList.filter((item) => item.status !== "proven").slice(0, 4).map((item) => <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4"><div><p className="font-semibold">{item.skill_name}</p><p className="text-sm text-muted-text mt-1">{item.evidence_summary || "No supporting evidence summary is available."}</p></div><span className={`self-start text-[10px] font-bold tracking-wide px-2 py-1 rounded-md ${item.status === "partial" ? "bg-status-partial/10 text-status-partial" : "bg-status-claimed/10 text-status-claimed"}`}>{item.status === "claimed" ? "CLAIMED-ONLY" : "PARTIAL"}</span></div>)}</div>}
+      </section>
 
       {/* Resume Claims */}
       <div className="bg-white border border-border rounded-xl p-6 shadow-subtle space-y-4">
@@ -563,11 +613,11 @@ export default function DashboardPage() {
       <div className="bg-white border border-border rounded-xl p-6 shadow-subtle space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold font-heading flex items-center gap-2 text-ink">
-              <FolderGit2 className="w-4 h-4 text-deep-green" /> Audited GitHub Repositories ({repositories.length})
+              <h2 className="text-base font-bold font-heading flex items-center gap-2 text-ink">
+              <FolderGit2 className="w-4 h-4 text-deep-green" /> Recent evidence ({repositories.length} repositories)
             </h2>
             <p className="text-xs text-muted-text mt-0.5">
-              Source code trees, package manifests, and test directories scanned for evidence classification[cite: 8].
+              Recent public work inspected for languages, dependencies, tests, and activity.
             </p>
           </div>
           <button
@@ -610,9 +660,9 @@ export default function DashboardPage() {
         {repositories.length === 0 ? (
           <div className="p-8 border border-dashed border-border rounded-xl text-center bg-warm-ivory/20">
             <GitBranch className="w-8 h-8 text-muted-text/60 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-ink">No repositories indexed yet</p>
+            <p className="text-sm font-semibold text-ink">Your evidence report is not ready yet.</p>
             <p className="text-xs text-muted-text mt-1 max-w-sm mx-auto">
-              Confirm your GitHub username in onboarding or click &ldquo;Re-scan Repositories&rdquo;.
+              Upload your resume and connect GitHub. SkillProof will compare your claimed skills with evidence from your public work.
             </p>
             <Link
               href="/onboarding"

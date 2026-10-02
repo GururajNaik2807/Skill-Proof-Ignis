@@ -21,9 +21,9 @@ export interface JobMatchReport {
   role_title: string;
   match_percentage: number;
   required_count: number;
-  proven_matches: SkillMatchComparison[];
-  partial_matches: SkillMatchComparison[];
-  missing_skills: SkillMatchComparison[];
+  provenMatches: SkillMatchComparison[];
+  partialMatches: SkillMatchComparison[];
+  missingSkills: SkillMatchComparison[];
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

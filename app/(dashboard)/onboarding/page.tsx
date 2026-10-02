@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { 
   UserCheck, 
   GitBranch, 
@@ -23,6 +24,22 @@ interface ResumeRecord {
   created_at: string;
 }
 
+interface GithubProfile {
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  publicRepos: number;
+}
+
+function normalizeGithubInput(value: string) {
+  return value
+    .trim()
+    .replace(/^https?:\/\/(www\.)?github\.com\//i, "")
+    .split(/[/?#]/)[0]
+    .replace(/^@/, "");
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -35,6 +52,8 @@ export default function OnboardingPage() {
   const [fullName, setFullName] = useState("");
   const [githubUsername, setGithubUsername] = useState("");
   const [targetRole, setTargetRole] = useState("");
+  const [githubProfile, setGithubProfile] = useState<GithubProfile | null>(null);
+  const [isVerifyingGithub, setIsVerifyingGithub] = useState(false);
 
   // Resume State
   const [existingResume, setExistingResume] = useState<ResumeRecord | null>(null);
@@ -53,7 +72,7 @@ export default function OnboardingPage() {
       }
 
       const [ { data: profile }, { data: resume } ] = await Promise.all([
-        supabase.from("profiles").select("full_name, github_username, target_role").eq("id", user.id).single(),
+        supabase.from("profiles").select("full_name, github_username, target_role, avatar_url").eq("id", user.id).single(),
         supabase.from("resumes").select("id, file_name, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).single()
       ]);
 
@@ -61,6 +80,9 @@ export default function OnboardingPage() {
         setFullName(profile.full_name || "");
         setGithubUsername(profile.github_username || "");
         setTargetRole(profile.target_role || "");
+        if (profile.github_username && profile.avatar_url) {
+          setGithubProfile({ username: profile.github_username, name: profile.full_name, avatarUrl: profile.avatar_url, bio: null, publicRepos: 0 });
+        }
       }
 
       if (resume) {
@@ -82,6 +104,34 @@ export default function OnboardingPage() {
     }
   }, [router, supabase]);
 
+  const handleVerifyGithub = async () => {
+    const username = normalizeGithubInput(githubUsername);
+    if (!username) {
+      setNotice({ type: "error", message: "Enter a GitHub username or profile URL first." });
+      return;
+    }
+
+    setIsVerifyingGithub(true);
+    setNotice(null);
+    setGithubProfile(null);
+    try {
+      const response = await fetch("/api/github/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "GitHub profile could not be verified.");
+      setGithubUsername(data.username);
+      setGithubProfile(data as GithubProfile);
+      setNotice({ type: "success", message: `GitHub profile @${data.username} found. ${data.publicRepos} public repositories available for scanning.` });
+    } catch (err: unknown) {
+      setNotice({ type: "error", message: err instanceof Error ? err.message : "GitHub profile could not be verified." });
+    } finally {
+      setIsVerifyingGithub(false);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -91,7 +141,10 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Authentication required");
 
-      const cleanGithubHandle = githubUsername.replace("@", "").trim();
+      const cleanGithubHandle = normalizeGithubInput(githubUsername);
+      if (!githubProfile) {
+        throw new Error("Verify your GitHub profile before saving it.");
+      }
 
       // Changed from update() to upsert() to fix the missing row error
       const { error } = await supabase
@@ -100,6 +153,7 @@ export default function OnboardingPage() {
           id: user.id, // ID is required for upsert
           full_name: fullName.trim(),
           github_username: cleanGithubHandle,
+          avatar_url: githubProfile.avatarUrl,
           target_role: targetRole.trim(),
           updated_at: new Date().toISOString(),
         });
@@ -135,7 +189,7 @@ export default function OnboardingPage() {
 
     try {
       const formData = new FormData();
-      formData.append("resume", file);
+      formData.append("file", file);
 
       const res = await fetch("/api/resume/upload", {
         method: "POST",
@@ -145,7 +199,7 @@ export default function OnboardingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to upload resume");
 
-      setNotice({ type: "success", message: "Resume uploaded and parsed successfully!" });
+      setNotice({ type: "success", message: "Resume uploaded successfully. Extract skills from the dashboard when ready." });
       await loadData(); // Refresh to show the new resume file
     } catch (err: unknown) {
       setNotice({ type: "error", message: err instanceof Error ? err.message : "Upload failed" });
@@ -217,10 +271,10 @@ export default function OnboardingPage() {
 
       {/* Part 1: Profile Details */}
       <div id="github" className="bg-white border border-border rounded-xl p-6 shadow-subtle space-y-5">
-        <h2 className="text-sm font-bold text-ink uppercase tracking-wider border-b border-border pb-3">Identity & GitHub</h2>
+        <div className="border-b border-border pb-4"><p className="text-sm font-semibold text-deep-green">Step 2 of 3</p><h2 className="text-xl font-bold text-ink mt-1">Connect GitHub</h2><p className="text-sm text-muted-text mt-1">SkillProof checks your public repositories, commits, dependencies, and tests.</p></div>
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
+            <label className="text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
               Full Name
             </label>
             <input
@@ -234,21 +288,23 @@ export default function OnboardingPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <label className="text-xs font-semibold text-ink uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <GitBranch className="w-3.5 h-3.5 text-muted-text" /> GitHub Username
             </label>
             <input
               type="text"
               required
               value={githubUsername}
-              onChange={(e) => setGithubUsername(e.target.value)}
-              placeholder="e.g. gururajnaik"
-              className="w-full px-3.5 py-2.5 bg-soft-surface/50 border border-border rounded-lg text-xs focus:outline-none focus:border-deep-green text-ink font-mono"
+              onChange={(e) => { setGithubUsername(e.target.value); setGithubProfile(null); }}
+              placeholder="username or https://github.com/username"
+              className="w-full px-3.5 py-2.5 bg-soft-surface/50 border border-border rounded-lg text-sm focus:outline-none focus:border-deep-green text-ink font-mono"
             />
+            <div className="flex items-center justify-between gap-3 mt-2"><p className="text-xs text-muted-text">We only inspect public GitHub data.</p><button type="button" onClick={handleVerifyGithub} disabled={isVerifyingGithub} className="px-3 py-2 rounded-sm border border-deep-green text-deep-green text-xs font-semibold hover:bg-deep-green/5 disabled:opacity-50">{isVerifyingGithub ? "Checking..." : "Verify profile"}</button></div>
+            {githubProfile && <div className="mt-4 flex items-center gap-3 rounded-lg border border-status-proven/25 bg-status-proven/5 p-3">{githubProfile.avatarUrl ? <Image src={githubProfile.avatarUrl} alt="" width={40} height={40} className="w-10 h-10 rounded-full" /> : <div className="w-10 h-10 rounded-full bg-deep-green/10 flex items-center justify-center text-deep-green font-semibold">{githubProfile.username.charAt(0).toUpperCase()}</div>}<div><p className="text-sm font-semibold text-ink">{githubProfile.name || githubProfile.username}</p><p className="text-xs text-muted-text">@{githubProfile.username} · {githubProfile.publicRepos} public repositories</p></div><CheckCircle2 className="w-5 h-5 text-status-proven ml-auto" /></div>}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <label className="text-xs font-semibold text-ink uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Briefcase className="w-3.5 h-3.5 text-muted-text" /> Target Role
             </label>
             <input

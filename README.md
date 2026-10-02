@@ -1,133 +1,166 @@
-# SkillProof 🛡️️
+# SkillProof
 
-> **"Your resume says it. Your work proves it."**
+> Evidence from the work behind the resume.
 
-SkillProof is a developer verification SaaS that automatically audits technical claims in a candidate's resume against concrete, verifiable evidence from their public GitHub repositories. It replaces unverifiable resume buzzwords with codebase-backed signals, maps skills against job descriptions to identify real gaps, and generates targeted micro-tasks to turn unproven claims into verified commits.
+SkillProof compares technical skills claimed on a resume with evidence from public GitHub work. It shows candidates what is supported, what is partial, and what still needs evidence. Recruiters can compare existing candidate evidence against job requirements.
 
----
+## Product Workflows
 
-## 🎯 The Core Problem & Dual-Persona Solution
+### Candidate
 
-* **The Problem:** Technical resumes are saturated with buzzwords, boilerplate projects, and inflated claims. Recruiters spend hours guessing whether a candidate genuinely knows a technology, while candidates have no actionable guidance on how to prove their true competence.
-* **The Solution:** SkillProof establishes a deterministic, codebase-backed evidence loop for two distinct personas:
-  * 👨‍💻 **For Developers (Candidates):** Audit claimed skills across public GitHub repositories, spot unproven gaps, and complete targeted micro-tasks to convert claims into proven commits.
-  * 🏢 **For Employers & Recruiters:** Search a verified talent pool, inspect audited candidate codebases with deep links down to test suites and commit recency, and run batch candidate matching against pasted Job Descriptions (JDs).
+`Resume -> Skills -> GitHub -> Evidence -> Job Match -> Skill Gaps -> Tasks`
 
----
+Candidates can:
 
-## 🚦 Deterministic Evidence Model
+- Upload and parse a PDF resume.
+- Validate a GitHub username or profile URL.
+- Scan public repositories for languages, dependencies, tests, Docker, CI, and activity.
+- Review skills as `PROVEN`, `PARTIAL`, or `CLAIMED-ONLY`.
+- Compare evidence with a job description.
+- Generate practical micro-tasks for unsupported or partial skills.
+- Share a public evidence report.
 
-SkillProof never relies purely on AI guesses to declare a candidate verified. Evidence is categorized using physical codebase signals:
+### Recruiter
 
-| Tier | Status Color | Definition | Required Signals |
-| :--- | :--- | :--- | :--- |
-| **Proven** | `#2E8B6F` (Emerald) | Deep, functional codebase presence with proof of maintenance and testing. | Non-fork repositories, primary language byte weights, package manifests (`package.json`, `pyproject.toml`, `go.mod`), recent commits (< 12 months), and detected automated test suites (`tests/`, `*.spec.ts`, pytest). |
-| **Partial** | `#C58A24` (Amber) | Surface-level or dated presence; missing testing or active maintenance. | Mentioned only in configs/scaffolding, inactive repositories (> 12 months), or zero automated test suites. |
-| **Claimed-Only** | `#8A6255` (Muted Rust) | Stated on resume, but completely absent from public code. | Skill parsed from resume PDF with zero matching GitHub repositories, manifests, or commits. |
+`Job -> Required Skills -> Candidates -> Evidence`
 
----
+Recruiters can:
 
-## 🔁 Product Loop
+- Browse candidates in a dense evidence table.
+- Search and filter by candidate, skill, evidence status, and coverage.
+- Import multiple PDF resumes with independent queued, parsing, parsed, and error states.
+- Analyze a job description into required and preferred skills.
+- Compare candidates against the same requirements using stored evidence.
+- Select candidates for side-by-side evidence comparison.
+- Open repository links and inspect stored scanner signals.
 
-```text
-       Candidate Journey                       Employer Journey
-   ───────────────────────────            ───────────────────────────
-   Resume PDF + GitHub Handle             Paste Raw Job Description
-               ↓                                       ↓
-   Extract Claims (Gemini API)            Parse Required Tech Stack
-               ↓                                       ↓
-   Scan GitHub (Trees/Tests/Deps)         Rank Candidates by Real Evidence
-               ↓                                       ↓
-   Evaluate Evidence (Proven/Partial)     Deep-link Code & Test Audit
-               ↓                                       ↓
-   Generate 1–2 hr Micro-Tasks            Shortlist Verified Engineers
-   🛠️ Tech StackFramework: Next.js 15 (App Router, React 19)Language: TypeScriptStyling & Design System: Tailwind CSS v4 (@theme design tokens: Ink, Deep Green, Warm Ivory)Icons: Lucide ReactDatabase & Auth: Supabase PostgreSQL + Supabase Auth + Supabase StorageSession Management: @supabase/ssr (Edge Middleware + Server Actions)AI & Structured Extraction: Google Gemini API (@google/genai targeting gemini-3.8-flash with deterministic regex fallback)PDF Ingestion: unpdf (pure WebAssembly/JS engine, zero native Canvas dependency)Validation: Zod📂 Project StructurePlaintextskillproof/
-├── app/
-│   ├── (auth)/
-│   │   ├── login/page.tsx                  # Email/password authentication
-│   │   └── signup/page.tsx                 # Dual-persona registration (Developer vs. Employer)
-│   │
-│   ├── (dashboard)/                        # DEVELOPER ROUTE GROUP
-│   │   ├── layout.tsx                      # Candidate dashboard shell with collapsible sidebar
-│   │   ├── dashboard/page.tsx              # Verification Hub (Metrics, Claims, Repos & Quick Task widget)
-│   │   ├── onboarding/page.tsx             # 4-step wizard: Profile → GitHub → Resume → Scan
-│   │   ├── matrix/page.tsx                 # Interactive Evidence Matrix with deep-linked repos
-│   │   ├── jobs/page.tsx                   # Job Description Matcher & gap analysis
-│   │   └── tasks/page.tsx                  # Micro-Tasks Manager (Interactive status cycles)
-│   │
-│   ├── (recruiter)/                        # EMPLOYER / RECRUITER ROUTE GROUP
-│   │   ├── layout.tsx                      # Recruiter workspace sidebar & navigation
-│   │   ├── recruiter/
-│   │   │   ├── dashboard/page.tsx          # Verified candidate talent pool & filtering
-│   │   │   ├── jobs/page.tsx               # Raw JD ingestion & batch candidate match scores
-│   │   │   └── candidate/[id]/page.tsx     # Deep-dive candidate code audit report
-│   │
-│   ├── v/[slug]/page.tsx                   # Public Shareable Proof View (Tokenized URL)
-│   │
-│   ├── api/                                # Backend Route Handlers (Server-side secrets)
-│   │   ├── github/
-│   │   │   ├── validate/route.ts           # GitHub profile verification
-│   │   │   └── scan/route.ts               # Repo tree, dependency & test scanner
-│   │   ├── resume/
-│   │   │   ├── upload/route.ts             # PDF text extraction (unpdf) & Supabase storage
-│   │   │   └── parse/route.ts              # Gemini skill extraction into resume_skills
-│   │   ├── evidence/
-│   │   │   └── evaluate/route.ts           # Deterministic codebase matching & classification
-│   │   ├── jobs/
-│   │   │   └── match/route.ts              # Gemini JD skill extractor & candidate match scoring
-│   │   └── tasks/
-│   │       ├── generate/route.ts           # Gemini micro-task generator for gaps
-│   │       └── update/route.ts             # Micro-task progress & status updates
-│   │
-│   ├── auth/
-│   │   ├── callback/route.ts               # OAuth and magic link session exchange
-│   │   └── signout/route.ts                # Server-side auth signout handler
-│   │
-│   ├── globals.css                         # Tailwind v4 @theme design tokens
-│   ├── layout.tsx                          # Root layout with Manrope & Inter fonts
-│   └── page.tsx                            # Landing page with interactive sample audit
-│
-├── components/
-│   ├── auth/
-│   │   └── password-requirements.tsx       # Live interactive password strength checker
-│   ├── layout/
-│   │   ├── dashboard-sidebar.tsx           # Collapsible desktop/mobile developer sidebar
-│   │   ├── navbar.tsx                      # Public header
-│   │   └── footer.tsx                      # Global footer
-│   └── ui/
-│       ├── button.tsx                      # CVA-styled design token buttons
-│       └── input.tsx                       # Styled input fields with validation states
-│
-├── lib/
-│   ├── evidence/
-│   │   └── classifier.ts                   # Deterministic Proven/Partial/Claimed heuristics
-│   ├── gemini/
-│   │   ├── extractor.ts                    # Gemini resume parser with backoff & regex fallback
-│   │   ├── job-matcher.ts                  # JD requirements extractor & match score calculator
-│   │   └── task-generator.ts               # Micro-task generation engine
-│   ├── github/
-│   │   ├── client.ts                       # GitHub REST API client with rate-limit safety
-│   │   └── scanner.ts                      # Language, manifest, test, and Docker parser
-│   ├── supabase/
-│   │   ├── client.ts                       # Browser Supabase client
-│   │   └── server.ts                       # Cookie-based Server Supabase client
-│   ├── validation/
-│   │   └── onboarding.ts                   # Zod schemas for user profiles & file validation
-│   └── utils.ts                            # Class merger utility (clsx + twMerge)
-│
-├── types/                                  # Global TypeScript definitions
-├── middleware.ts                           # Edge route guard & session refresher
-└── .env.local                              # Private API keys & service credentials
-🎨 Design System & PaletteTokenHexRoleInk#17201CPrimary text, headings, dark surfacesDeep Green#1F5C48Primary brand accent, action buttons, active statesEmerald#2E8B6FSecondary accent, icons, proven status highlightWarm Ivory#F7F5EFBackground canvas toneSoft Surface#EEECE5Card backgrounds, inputs, neutral chipsMuted Text#69716CCaptions, secondary descriptionsBorder#D9DDD7Divider lines, card bordersProven#2E8B6FBadge status: verified with tested codePartial#C58A24Badge status: shallow config / no testsClaimed#8A6255Badge status: resume-only claimError#B94A48Destructive states, critical gaps🔑 Environment Variables SetupCreate a .env.local file in the root directory:Code snippet# Supabase
-NEXT_PUBLIC_SUPABASE_URL=[https://your-project.supabase.co](https://your-project.supabase.co)
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+## Evidence Model
 
-# GitHub REST API (Prevents 60 req/hr anonymous rate limits)
-GITHUB_TOKEN=ghp_your_personal_access_token
+SkillProof does not mark a skill as supported from an AI response alone. Evidence comes from persisted GitHub scanner data:
 
-# Google Gemini API
-GEMINI_API_KEY=AIzaSy...
-🚀 Getting StartedInstall dependencies:Bashnpm install
-Configure Supabase Database & Storage:Run the SQL migrations to set up the multi-role schema (profiles, resumes, github_repositories, skill_evidence, job_descriptions, micro_tasks).Create a private storage bucket named resumes with a 5MB PDF limit and owner-scoped RLS policies.Start Development Server:Bashnpm run dev
-Open http://localhost:3000 in your browser.🗺️ Roadmap & Implementation Stages[x] Stage 0: Foundation & Design System (Tailwind v4 tokens, fonts, folder structure)   [x] Stage 1: Landing Page, Supabase Auth Integration, and Dashboard Shell   [x] Stage 2: Dual-Persona Onboarding Flow (GitHub validation + unpdf resume extraction)   [x] Stage 3: GitHub Codebase Analyzer (language breakdown, commit recency, manifests, tests)   [x] Stage 4: Resume Skill Extractor (Gemini gemini-3.8-flash structured extraction into resume_skills)   [x] Stage 5: Deterministic Evidence Classification Engine (proven / partial / claimed)   [x] Stage 6: Interactive Evidence Matrix Dashboard (/matrix) & Candidate Public Proof URL (/v/[slug])   [x] Stage 7: Job Description Parser & Match Score Engine (/jobs & /api/jobs/match)   [x] Stage 8: Practical Micro-Task Generator (/tasks with status cycles & deliverables)   [ ] Stage 9: Security Polish, Global Error Handling, Rate Limiting, and Demo Preparation   
+| Status | Meaning | Color |
+| --- | --- | --- |
+| `PROVEN` | Matching repository signals, recent activity, and detected tests | `#27C281` |
+| `PARTIAL` | Matching code exists but testing or recency is limited | `#F2B84B` |
+| `CLAIMED-ONLY` | Listed on the resume with no matching repository evidence | `#F05D5E` |
+
+The current scanner persists repository URLs, languages, detected dependencies, tests, Docker, CI, and commit activity. README files and direct source-file paths are not currently persisted and are not presented as evidence.
+
+## Design System
+
+The interface uses a technical midnight/cobalt visual system:
+
+- Midnight: `#0B1020`
+- Deep surface: `#111827`
+- Raised surface: `#182235`
+- Border: `#28354A`
+- Primary text: `#F5F7FB`
+- Secondary text: `#9AA7B8`
+- Cobalt: `#2F6BFF`
+- Cobalt hover: `#4A7DFF`
+- Tangerine: `#FF7A3D`
+- Proven: `#27C281`
+- Partial: `#F2B84B`
+- Unsupported/error: `#F05D5E`
+
+Headings use Manrope. Body and interface text use Inter. The UI favors tables, evidence rows, dividers, restrained borders, and compact status indicators over decorative cards or gradients.
+
+## Technology
+
+- Next.js App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Lucide React
+- Supabase PostgreSQL, Auth, Storage, and `@supabase/ssr`
+- Gemini API for structured resume and job-description extraction
+- GitHub REST API
+- `unpdf` for PDF text extraction
+- Zod validation
+
+## Route Map
+
+### Public and Auth
+
+- `/` landing page
+- `/login` email/password login and password reset request
+- `/signup` candidate/recruiter role selection
+- `/auth/callback` Supabase session callback
+- `/auth/reset-password` password update flow
+- `/v/[slug]` public candidate evidence report
+
+### Candidate
+
+- `/dashboard` candidate overview and next action
+- `/onboarding` profile, GitHub validation, and resume upload
+- `/matrix` filterable skills and evidence report
+- `/jobs` candidate job matching
+- `/tasks` evidence-building micro-tasks
+
+### Recruiter
+
+- `/recruiter/dashboard` candidate evidence workspace, bulk resume intake, filters, and comparison
+- `/recruiter/jobs` job requirement extraction and multi-candidate matching
+- `/recruiter/candidate/[id]` candidate evidence audit and job-specific review
+
+### Server Routes
+
+- `/api/github/validate`
+- `/api/github/scan`
+- `/api/resume/upload`
+- `/api/resume/parse`
+- `/api/evidence/evaluate`
+- `/api/jobs/match`
+- `/api/recruiter/jobs/match`
+- `/api/tasks/update`
+
+## Role Security
+
+Roles are stored in `public.profiles.role` and are limited to `candidate` and `recruiter`. Middleware refreshes sessions and redirects users away from unauthorized route groups. Candidate and recruiter layouts repeat the server-side role check. Recruiter APIs also verify the authenticated recruiter role.
+
+Secrets remain server-side:
+
+- `GITHUB_TOKEN`
+- `GEMINI_API_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Only the public Supabase URL and anon key are exposed to the browser.
+
+## Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+GITHUB_TOKEN=your-github-token
+GEMINI_API_KEY=your-gemini-key
+```
+
+Apply the profile-role migration in `supabase/migrations/`, configure the `profiles`, `resumes`, `resume_skills`, `github_repositories`, `skill_evidence`, `job_descriptions`, and `micro_tasks` tables, and create the private `resumes` storage bucket with owner-scoped policies.
+
+Start development:
+
+```bash
+npm run dev
+```
+
+Run validation:
+
+```bash
+npm run lint
+npm run build
+```
+
+## Known Limitations
+
+- Bulk recruiter resumes are uploaded and parsed independently, but the existing schema does not yet include a recruiter import table or a candidate-link workflow.
+- README evidence and direct source-file paths are not persisted by the current scanner.
+- The repository still reports a Next.js middleware-to-proxy deprecation warning and a small number of existing React hook dependency warnings.

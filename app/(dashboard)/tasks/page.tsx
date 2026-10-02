@@ -107,10 +107,10 @@ export default function MicroTasksPage() {
           </Link>
           <h1 className="text-2xl sm:text-3xl font-bold font-heading text-ink flex items-center gap-2.5">
             <Layers className="w-7 h-7 text-deep-green" />
-            Verification Micro-Tasks
+            Turn skill gaps into evidence
           </h1>
           <p className="text-xs sm:text-sm text-muted-text mt-1">
-            Targeted 1–2 hour coding tasks designed to produce real GitHub artifacts that flip unverified claims into proven evidence.
+            Practical tasks based on the skills your evidence report says need work.
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export default function MicroTasksPage() {
           ) : (
             <Sparkles className="w-3.5 h-3.5" />
           )}
-          Generate New Micro-Tasks
+          Generate a task
         </button>
       </div>
 
@@ -160,7 +160,7 @@ export default function MicroTasksPage() {
       <div className="p-5 bg-white border border-border rounded-xl shadow-subtle flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold text-muted-text uppercase tracking-wider block">
-            Verification Task Progress
+            Evidence-building progress
           </span>
           <p className="text-xl font-bold font-heading text-ink mt-0.5">
             {completedCount} of {tasks.length} Completed
@@ -183,9 +183,9 @@ export default function MicroTasksPage() {
         {tasks.length === 0 ? (
           <div className="p-12 bg-white border border-dashed border-border rounded-xl text-center">
             <Layers className="w-10 h-10 text-muted-text/40 mx-auto mb-3" />
-            <h3 className="text-sm font-bold text-ink">No micro-tasks generated yet</h3>
+            <h3 className="text-sm font-bold text-ink">No evidence-building task yet</h3>
             <p className="text-xs text-muted-text max-w-sm mx-auto mt-1">
-              Click &ldquo;Generate New Micro-Tasks&rdquo; to analyze your unproven skills and generate 1–2 hour coding roadmaps.
+              Generate a task from your partial or claimed-only skills. Each task should create a concrete GitHub artifact.
             </p>
           </div>
         ) : (
@@ -260,7 +260,7 @@ export default function MicroTasksPage() {
               {task.deliverables && task.deliverables.length > 0 && (
                 <div className="space-y-1.5 pt-1">
                   <span className="text-[11px] font-semibold text-ink uppercase tracking-wider block">
-                    Target Deliverables
+                    Evidence created
                   </span>
                   <div className="space-y-1">
                     {task.deliverables.map((d, idx) => (
@@ -278,7 +278,7 @@ export default function MicroTasksPage() {
                 <div className="p-3 bg-soft-surface/50 border border-border rounded-lg flex items-center gap-2 text-xs">
                   <Target className="w-4 h-4 text-deep-green shrink-0" />
                   <span className="text-muted-text">
-                    <strong className="text-ink">Verification Signal:</strong> {task.verification_target}
+                    <strong className="text-ink">Goal:</strong> {task.verification_target}
                   </span>
                 </div>
               )}

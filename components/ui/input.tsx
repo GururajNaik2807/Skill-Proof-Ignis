@@ -9,7 +9,8 @@ export interface InputProps
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, label, error, id, ...props }, ref) => {
-    const inputId = id || React.useId();
+    const generatedId = React.useId();
+    const inputId = id || generatedId;
 
     return (
       <div className="w-full space-y-1.5">
@@ -26,7 +27,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           type={type}
           ref={ref}
           className={cn(
-            "w-full px-3.5 py-2.5 bg-warm-ivory/50 border border-border rounded-lg text-sm text-ink placeholder:text-muted-text/50 focus:outline-none focus:border-deep-green focus:ring-1 focus:ring-deep-green transition-colors",
+            "w-full px-3.5 py-2.5 bg-paper border border-border rounded-[9px] text-sm text-ink placeholder:text-muted-text/50 focus:outline-none focus:border-deep-green focus:ring-1 focus:ring-deep-green transition-colors",
             error && "border-status-error focus:border-status-error focus:ring-status-error",
             className
           )}

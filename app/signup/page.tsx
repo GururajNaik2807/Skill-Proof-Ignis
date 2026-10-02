@@ -20,7 +20,12 @@ import {
 } from "@/components/auth/password-requirements";
 
 export default function SignupPage() {
-  const [role, setRole] = useState<"candidate" | "recruiter">("candidate");
+  const [role, setRole] = useState<"candidate" | "recruiter">(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("role") === "recruiter"
+      ? "recruiter"
+      : "candidate"
+  );
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
@@ -32,6 +37,7 @@ export default function SignupPage() {
 
   const supabase = createClient();
   const router = useRouter();
+
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();

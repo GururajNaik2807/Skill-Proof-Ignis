@@ -5,12 +5,17 @@ import Link from "next/link";
 import {
   ShieldCheck,
   CheckCircle2,
-  Clock,
   GitBranch,
   ExternalLink,
   FolderGit2,
   Check,
 } from "lucide-react";
+
+interface PublicMatchedRepo {
+  name: string;
+  url: string;
+  has_tests?: boolean;
+}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -137,7 +142,7 @@ export default async function PublicProofPage({ params }: PageProps) {
           ) : (
             <div className="space-y-4">
               {evidence.map((item) => {
-                const repos = (item.matched_repos as any[]) || [];
+                const repos = (item.matched_repos as PublicMatchedRepo[] | null) || [];
                 return (
                   <div
                     key={item.id}
@@ -169,7 +174,7 @@ export default async function PublicProofPage({ params }: PageProps) {
 
                     {repos.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-1">
-                        {repos.map((r: any, idx: number) => (
+                        {repos.map((r, idx) => (
                           <a
                             key={idx}
                             href={r.url}
