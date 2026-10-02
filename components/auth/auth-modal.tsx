@@ -116,7 +116,6 @@ export function AuthModal({
         return;
       }
 
-      // SIGNUP LOGIC
       if (!isPasswordValid)
         throw new Error("Please satisfy all password security requirements.");
       if (role === "recruiter" && !companyName.trim())
@@ -181,7 +180,8 @@ export function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto font-sans"
+      className="!fixed !inset-0 !z-[9999] !flex !items-center !justify-center p-4 overflow-y-auto font-sans"
+      style={{ display: "flex", visibility: "visible", opacity: 1 }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -190,7 +190,7 @@ export function AuthModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm pointer-events-none"
+        className="!fixed !inset-0 bg-black/80 backdrop-blur-sm pointer-events-none !z-[9998]"
       />
 
       <motion.div
@@ -200,7 +200,7 @@ export function AuthModal({
         transition={{ duration: 0.2, ease: "easeOut" }}
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-[420px] border border-zinc-800 rounded-2xl bg-zinc-950 p-7 shadow-2xl z-10 overflow-hidden text-zinc-100"
+        className="!relative w-full max-w-[420px] border border-zinc-800 rounded-2xl bg-zinc-950 p-7 shadow-2xl !z-[10000] overflow-hidden text-zinc-100"
       >
         <button
           type="button"
@@ -211,7 +211,6 @@ export function AuthModal({
           <X className="w-4 h-4" />
         </button>
 
-        {/* Segmented Top Toggle */}
         <div className="flex bg-zinc-900 p-1 rounded-xl border border-zinc-800 w-fit mb-6 mx-auto">
           <button
             type="button"
@@ -329,7 +328,8 @@ export function AuthModal({
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
                 placeholder="Alex Morgan"
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
+                style={{ backgroundColor: "#18181b", color: "#ffffff" }}
+                className="!bg-zinc-900 !text-white w-full rounded-xl border border-zinc-800 px-3.5 py-2.5 text-sm placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
               />
             </div>
           )}
@@ -344,7 +344,8 @@ export function AuthModal({
                 value={companyName}
                 onChange={(event) => setCompanyName(event.target.value)}
                 placeholder="Acme Inc"
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
+                style={{ backgroundColor: "#18181b", color: "#ffffff" }}
+                className="!bg-zinc-900 !text-white w-full rounded-xl border border-zinc-800 px-3.5 py-2.5 text-sm placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
               />
             </div>
           )}
@@ -359,7 +360,8 @@ export function AuthModal({
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@domain.com"
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
+              style={{ backgroundColor: "#18181b", color: "#ffffff" }}
+              className="!bg-zinc-900 !text-white w-full rounded-xl border border-zinc-800 px-3.5 py-2.5 text-sm placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
             />
           </div>
 
@@ -385,12 +387,13 @@ export function AuthModal({
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 pr-11 text-sm text-white placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
+                style={{ backgroundColor: "#18181b", color: "#ffffff" }}
+                className="!bg-zinc-900 !text-white w-full rounded-xl border border-zinc-800 px-3.5 py-2.5 pr-11 text-sm placeholder-zinc-500 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/60 transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer z-10"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -437,7 +440,12 @@ export function AuthModal({
           <button
             disabled={loading || (!isLogin && !isPasswordValid)}
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 px-4 py-3 text-sm font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mt-4 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-[0.99]"
+            style={{ 
+              backgroundColor: "#ffffff", 
+              color: "#09090b",
+              opacity: loading || (!isLogin && !isPasswordValid) ? 0.4 : 1 
+            }}
+            className="!bg-white !text-black flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all cursor-pointer mt-4 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-[0.99] disabled:cursor-not-allowed"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />

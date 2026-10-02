@@ -6,6 +6,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { Users, GitBranch, ArrowRight, Loader2, CheckSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { calculateMatchScore, ParsedJobRequirement, CandidateSkillInput } from "@/lib/shared/match-calculator";
 
 export default function CandidatesPage() {
   const supabase = createClient();
@@ -27,7 +28,7 @@ export default function CandidatesPage() {
     // 1. Get recruiter's jobs
     const { data: jobs } = await supabase
       .from("jobs")
-      .select("id, title")
+      .select("id, title, required_skills")
       .eq("recruiter_id", user.id);
 
     if (!jobs || jobs.length === 0) {
@@ -61,17 +62,49 @@ export default function CandidatesPage() {
 
     const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
 
+    // 4. Get skill evidence for job matching
+    const { data: evidenceList } = await supabase
+      .from("skill_evidence")
+      .select("user_id, skill_name, status")
+      .in("user_id", candidateIds);
+
+    const evidenceByCandidate = new Map<string, any[]>();
+    evidenceList?.forEach((e: any) => {
+      const existing = evidenceByCandidate.get(e.user_id) || [];
+      existing.push(e);
+      evidenceByCandidate.set(e.user_id, existing);
+    });
+
+    const jobDetailsMap = new Map(jobs.map((j: any) => [j.id, j]));
+
     const enriched = apps.map((app: any) => {
       const p = profileMap.get(app.candidate_id);
+      const jobData = jobDetailsMap.get(app.job_id);
+      
+      const reqList: string[] = jobData?.required_skills || [];
+      const requirements: ParsedJobRequirement[] = reqList.map(skill_name => ({
+        skill_name,
+        importance: "required" as const
+      }));
+
+      const candidateEv = evidenceByCandidate.get(app.candidate_id) || [];
+      const candidateSkills: CandidateSkillInput[] = candidateEv.map((e: any) => ({
+        skill_name: e.skill_name,
+        status: e.status
+      }));
+
+      const matchPercent = calculateMatchScore(requirements, candidateSkills).overall_score;
+
       return {
         id: app.id,
         candidate_id: app.candidate_id,
         full_name: p?.full_name || "Unknown Candidate",
         github_username: p?.github_username,
-        job_title: jobMap.get(app.job_id),
+        job_title: jobData?.title,
         status: app.status || "Pending",
-        match_score: app.match_score || 0,
-        job_id: app.job_id
+        match_score: matchPercent,
+        job_id: app.job_id,
+        evidence_score: `${candidateEv.filter((e: any) => e.status === "proven").length} / ${candidateEv.length}`
       };
     });
 
@@ -106,7 +139,7 @@ export default function CandidatesPage() {
 
         <button
           onClick={handleCompare}
-          disabled={selectedIds.length === 0}
+          disabled={selectedIds.length < 2}
           className="px-5 py-2.5 bg-zinc-900 border border-zinc-700 hover:border-emerald-500 hover:text-emerald-400 text-zinc-300 text-sm font-bold rounded-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <CheckSquare className="w-4 h-4" /> Compare Selected ({selectedIds.length})

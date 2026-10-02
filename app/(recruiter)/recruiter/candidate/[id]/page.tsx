@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Check, ExternalLink, GitBranch, X, Star } from "lucide-react";
 import { revalidatePath } from "next/cache";
 import { EvidenceVisualizer } from "@/components/recruiter/evidence-visualizer";
+import { calculateMatchScore, ParsedJobRequirement, CandidateSkillInput } from "@/lib/shared/match-calculator";
 
 interface PageProps { params: Promise<{ id: string }>; searchParams?: Promise<{ jobId?: string }> }
 
@@ -42,22 +43,26 @@ export default async function CandidateAuditPage({ params, searchParams }: PageP
       .single();
       
     if (job) {
-      const required = job.required_skills || [];
-      const candidateSkills = evidence || [];
-      
-      const provenMatches = required.filter((r: string) => candidateSkills.some(s => s.skill_name.toLowerCase() === r.toLowerCase() && s.status === "proven"));
-      const partialMatches = required.filter((r: string) => candidateSkills.some(s => s.skill_name.toLowerCase() === r.toLowerCase() && s.status === "partial"));
-      const missingSkills = required.filter((r: string) => !candidateSkills.some(s => s.skill_name.toLowerCase() === r.toLowerCase() && (s.status === "proven" || s.status === "partial")));
-      
-      const match_percentage = required.length > 0 ? Math.round(((provenMatches.length + partialMatches.length * 0.5) / required.length) * 100) : 0;
+      const requiredList = job.required_skills || [];
+      const requirements: ParsedJobRequirement[] = requiredList.map((skill_name: string) => ({
+        skill_name,
+        importance: "required" as const
+      }));
+
+      const candidateSkillsInput: CandidateSkillInput[] = (evidence || []).map((e: any) => ({
+        skill_name: e.skill_name,
+        status: e.status
+      }));
+
+      const matchReport = calculateMatchScore(requirements, candidateSkillsInput);
       
       jobMatch = {
         title: job.title,
         report: {
-          match_percentage,
-          provenMatches: provenMatches.map((s: string) => ({ skill: s })),
-          partialMatches: partialMatches.map((s: string) => ({ skill: s })),
-          missingSkills: missingSkills.map((s: string) => ({ skill: s }))
+          match_percentage: matchReport.overall_score,
+          provenMatches: matchReport.matching_skills.map(s => ({ skill: s })),
+          partialMatches: matchReport.partial_skills.map(s => ({ skill: s })),
+          missingSkills: matchReport.missing_skills.map(s => ({ skill: s }))
         }
       };
 

@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const apiKey = process.env.GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
+import { generateGeminiJson } from "@/lib/gemini/client";
 
 export interface SkillGapTarget {
   skill_name: string;
@@ -24,21 +21,9 @@ export async function generateMicroTasks(
   gaps: SkillGapTarget[],
   targetRole?: string
 ): Promise<GeneratedMicroTask[]> {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not defined.");
-  }
-
   if (gaps.length === 0) {
     return [];
   }
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.2,
-    },
-  });
 
   const prompt = `
 You are a lead software engineer designing verifiable coding tasks.
@@ -75,8 +60,11 @@ Return a JSON array of objects adhering strictly to this schema:
 `;
 
   try {
-    const result = await model.generateContent(prompt);
-    const parsed = JSON.parse(result.response.text());
+    const { text } = await generateGeminiJson(prompt, {
+      responseMimeType: "application/json",
+      temperature: 0.2,
+    });
+    const parsed = JSON.parse(text);
 
     if (!Array.isArray(parsed)) return [];
 

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Users, GitBranch, ArrowRight, Loader2, Star } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { calculateMatchScore, ParsedJobRequirement, CandidateSkillInput } from "@/lib/shared/match-calculator";
 
 export default function ShortlistPage() {
   const supabase = createClient();
@@ -25,7 +26,7 @@ export default function ShortlistPage() {
     // 1. Get recruiter's jobs
     const { data: jobs } = await supabase
       .from("jobs")
-      .select("id, title")
+      .select("id, title, required_skills")
       .eq("recruiter_id", user.id);
 
     if (!jobs || jobs.length === 0) {
@@ -61,16 +62,47 @@ export default function ShortlistPage() {
 
     const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
 
+    // 4. Get skill evidence for job matching
+    const { data: evidenceList } = await supabase
+      .from("skill_evidence")
+      .select("user_id, skill_name, status")
+      .in("user_id", candidateIds);
+
+    const evidenceByCandidate = new Map<string, any[]>();
+    evidenceList?.forEach((e: any) => {
+      const existing = evidenceByCandidate.get(e.user_id) || [];
+      existing.push(e);
+      evidenceByCandidate.set(e.user_id, existing);
+    });
+
+    const jobDetailsMap = new Map(jobs.map((j: any) => [j.id, j]));
+
     const enriched = apps.map((app: any) => {
       const p = profileMap.get(app.candidate_id);
+      const jobData = jobDetailsMap.get(app.job_id);
+      
+      const reqList: string[] = jobData?.required_skills || [];
+      const requirements: ParsedJobRequirement[] = reqList.map((skill_name: string) => ({
+        skill_name,
+        importance: "required" as const
+      }));
+
+      const candidateEv = evidenceByCandidate.get(app.candidate_id) || [];
+      const candidateSkills: CandidateSkillInput[] = candidateEv.map((e: any) => ({
+        skill_name: e.skill_name,
+        status: e.status
+      }));
+
+      const matchPercent = calculateMatchScore(requirements, candidateSkills).overall_score;
+
       return {
         id: app.id,
         candidate_id: app.candidate_id,
         full_name: p?.full_name || "Unknown Candidate",
         github_username: p?.github_username,
-        job_title: jobMap.get(app.job_id),
+        job_title: jobData?.title,
         status: app.status || "Shortlisted",
-        match_score: app.match_score || 0,
+        match_score: matchPercent,
         job_id: app.job_id
       };
     });

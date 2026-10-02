@@ -38,7 +38,7 @@ export function CandidateTable({ candidates }: { candidates: any[] }) {
             const provenCount = parseInt(scoreParts[0] || "0", 10);
             
             return (
-              <tr key={candidate.id || i} className="hover:bg-zinc-900/40 transition-colors group">
+              <tr key={candidate.application_id || candidate.id || i} className="hover:bg-zinc-900/40 transition-colors group">
                 <td className="px-5 py-4">
                   <div className="flex flex-col">
                     <span className="font-bold text-zinc-100 text-sm">{candidate.full_name || "Unknown Candidate"}</span>

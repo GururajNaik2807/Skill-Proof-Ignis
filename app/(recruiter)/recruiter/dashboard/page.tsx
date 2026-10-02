@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { CandidateTable } from "@/components/recruiter/candidate-table";
+import { calculateMatchScore, ParsedJobRequirement, CandidateSkillInput } from "@/lib/shared/match-calculator";
 import { Plus, Users, ShieldCheck, Star, Briefcase, Search, Filter, ArrowRight } from "lucide-react";
 
 export default async function RecruiterDashboard() {
@@ -75,20 +76,19 @@ export default async function RecruiterDashboard() {
       const provenCount = candidateEvidence.filter((e: any) => e.status === "proven").length;
       const totalCount = candidateEvidence.length;
 
-      // Calculate Job Match against required skills
+      // Calculate Job Match against required skills using deterministic single source of truth
       const requiredList: string[] = app.job?.required_skills || [];
-      let matchPercent = 0;
-      if (requiredList.length > 0) {
-        const provenSkillNames = new Set(
-          candidateEvidence
-            .filter((e: any) => e.status === "proven")
-            .map((e: any) => e.skill_name.toLowerCase().trim())
-        );
-        const matches = requiredList.filter((r) =>
-          provenSkillNames.has(r.toLowerCase().trim())
-        ).length;
-        matchPercent = Math.round((matches / requiredList.length) * 100);
-      }
+      const requirements: ParsedJobRequirement[] = requiredList.map(skill_name => ({
+        skill_name,
+        importance: "required" as const
+      }));
+      
+      const candidateSkills: CandidateSkillInput[] = candidateEvidence.map((e: any) => ({
+        skill_name: e.skill_name,
+        status: e.status
+      }));
+
+      const matchPercent = calculateMatchScore(requirements, candidateSkills).overall_score;
 
       return {
         id: app.candidate.id,
@@ -98,16 +98,14 @@ export default async function RecruiterDashboard() {
         github_username: app.candidate.github_username,
         evidence_score: `${provenCount} / ${totalCount}`,
         job_match: matchPercent,
-        status: app.status === "shortlisted" ? "Shortlisted" : "Verified",
+        status: app.status === "shortlisted" ? "Shortlisted" : app.status === "reviewing" ? "Reviewing" : "New",
       };
     });
 
   // Calculate real metrics
-  const totalAnalyzed = candidateRows.length;
-  const verifiedCount = candidateRows.filter(
-    (c) => parseInt(c.evidence_score.split("/")[0]) > 0
-  ).length;
-  const strongMatches = candidateRows.filter((c) => c.job_match >= 75).length;
+  const activeJobsCount = dbJobs?.filter((j) => j.status === "active").length || 0;
+  const applicationsCount = candidateRows.length;
+  const toReviewCount = candidateRows.filter((c) => c.status === "New").length;
   const shortlistedCount = candidateRows.filter((c) => c.status === "Shortlisted").length;
 
   return (
@@ -115,10 +113,10 @@ export default async function RecruiterDashboard() {
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold font-heading text-zinc-100 tracking-tight">
-            Find candidates whose skills are <span className="text-emerald-400">actually proven.</span>
+            Recruiter Dashboard
           </h1>
-          <p className="text-sm sm:text-base text-zinc-400 mt-3 leading-relaxed">
-            SkillProof connects what candidates claim on their resume with cryptographic evidence from the code they've actually built and tested.
+          <p className="text-sm sm:text-base text-zinc-400 mt-2 leading-relaxed">
+            Manage your active job postings and review candidate evidence.
           </p>
         </div>
         <Link
@@ -131,9 +129,9 @@ export default async function RecruiterDashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Applicants Evaluated", value: totalAnalyzed, icon: Users, color: "text-blue-400", border: "border-blue-500/20" },
-          { label: "Verified Evidence", value: verifiedCount, icon: ShieldCheck, color: "text-emerald-400", border: "border-emerald-500/20" },
-          { label: "Strong Matches", value: strongMatches, icon: Briefcase, color: "text-cyan-400", border: "border-cyan-500/20" },
+          { label: "Active Jobs", value: activeJobsCount, icon: Briefcase, color: "text-blue-400", border: "border-blue-500/20" },
+          { label: "Applications", value: applicationsCount, icon: Users, color: "text-emerald-400", border: "border-emerald-500/20" },
+          { label: "To Review", value: toReviewCount, icon: ShieldCheck, color: "text-cyan-400", border: "border-cyan-500/20" },
           { label: "Shortlisted", value: shortlistedCount, icon: Star, color: "text-amber-400", border: "border-amber-500/20" },
         ].map((stat, i) => (
           <div key={i} className={`p-5 rounded-2xl border ${stat.border} bg-zinc-900/50 flex flex-col justify-between`}>

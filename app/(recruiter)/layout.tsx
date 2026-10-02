@@ -111,7 +111,7 @@ export default async function RecruiterLayout({
             <h3 className="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-6 mb-2">Workspace</h3>
             <nav className="space-y-1">
               <Link
-                href="/recruiter/evidence"
+                href="/recruiter/candidates"
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
               >
                 <FileSearch className="w-4 h-4 text-emerald-400" />

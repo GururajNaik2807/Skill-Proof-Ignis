@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const apiKey = process.env.GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
+import { generateGeminiJson } from "@/lib/gemini/client";
 
 export interface ExtractedSkill {
   skill_name: string;
@@ -44,18 +41,6 @@ const CANONICAL_SKILL_MAP: Record<string, string> = {
 };
 
 export async function extractSkills(resumeText: string): Promise<ExtractedSkill[]> {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is not defined.");
-  }
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.1,
-    },
-  });
-
   const prompt = `
 You are a technical qualification evaluator and resume auditor.
 Extract all technical skills, programming languages, markup formats, developer tools, libraries, and frameworks mentioned or directly implied in the candidate's resume.
@@ -82,8 +67,16 @@ ${resumeText.slice(0, 30000)}
 """
 `;
 
-  const result = await model.generateContent(prompt);
-  const responseText = result.response.text();
+  let responseText = "";
+  try {
+    ({ text: responseText } = await generateGeminiJson(prompt, {
+      responseMimeType: "application/json",
+      temperature: 0.1,
+    }));
+  } catch (error) {
+    console.warn("Gemini resume extraction unavailable; using deterministic skill fallback:", error);
+    return deterministicSkillFallback(resumeText);
+  }
 
   let rawList: ExtractedSkill[] = [];
   try {
@@ -111,4 +104,35 @@ ${resumeText.slice(0, 30000)}
   }
 
   return Array.from(unique.values());
+}
+
+function deterministicSkillFallback(resumeText: string): ExtractedSkill[] {
+  const lowerText = resumeText.toLowerCase();
+  const categoryBySkill: Record<string, ExtractedSkill["category"]> = {
+    Git: "tooling",
+    GitHub: "tooling",
+    HTML: "language",
+    CSS: "language",
+    JavaScript: "language",
+    TypeScript: "language",
+    React: "framework",
+    "Next.js": "framework",
+    Python: "language",
+    "Node.js": "framework",
+    Docker: "devops",
+    SQL: "database",
+    PostgreSQL: "database",
+    MongoDB: "database",
+    "Tailwind CSS": "framework",
+    FastAPI: "framework",
+    Flask: "framework",
+  };
+
+  return Object.keys(categoryBySkill)
+    .filter((skill) => lowerText.includes(skill.toLowerCase()))
+    .map((skill) => ({
+      skill_name: skill,
+      category: categoryBySkill[skill],
+      claimed_context: `Mentioned in the uploaded resume text: ${skill}.`,
+    }));
 }

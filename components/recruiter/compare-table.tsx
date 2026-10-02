@@ -70,7 +70,7 @@ export function CompareTable({ initialData, shortlistAction }: { initialData: an
               </div>
             </th>
             {data.map((c) => (
-              <th key={c.profile.id} className="px-5 py-4 min-w-[280px] border-l border-zinc-800/50 align-top">
+              <th key={c.app.id} className="px-5 py-4 min-w-[280px] border-l border-zinc-800/50 align-top">
                 <div className="flex flex-col">
                   <Link href={`/recruiter/candidate/${c.profile.id}`} className="text-sm font-bold text-zinc-100 hover:text-emerald-400">{c.profile.full_name}</Link>
                   <p className="text-[10px] text-zinc-500 mt-1">{c.proven.length} / {c.proven.length + c.partial.length} skills proven</p>
@@ -86,9 +86,17 @@ export function CompareTable({ initialData, shortlistAction }: { initialData: an
         </thead>
         <tbody className="divide-y divide-zinc-800/50">
           <tr>
+            <td className="px-5 py-4 font-bold text-zinc-400">Applied Job</td>
+            {data.map(c => (
+              <td key={c.app.id} className="px-5 py-4 border-l border-zinc-800/50">
+                <span className="text-zinc-300 text-xs font-semibold">{c.app.job_title || "Unknown Job"}</span>
+              </td>
+            ))}
+          </tr>
+          <tr>
             <td className="px-5 py-4 font-bold text-zinc-400">Core Tech Match</td>
             {data.map(c => (
-              <td key={c.profile.id} className="px-5 py-4 border-l border-zinc-800/50">
+              <td key={c.app.id} className="px-5 py-4 border-l border-zinc-800/50">
                 <span className={`inline-flex items-center gap-2 font-mono font-bold text-lg ${
                   (c.app.match_score || 0) >= 85 ? "text-emerald-400" : (c.app.match_score || 0) >= 70 ? "text-cyan-400" : "text-amber-400"
                 }`}>
@@ -100,7 +108,7 @@ export function CompareTable({ initialData, shortlistAction }: { initialData: an
           <tr>
             <td className="px-5 py-4 font-bold text-zinc-400 whitespace-normal">Verification Status Tier</td>
             {data.map(c => (
-              <td key={c.profile.id} className="px-5 py-4 border-l border-zinc-800/50 whitespace-normal align-top">
+              <td key={c.app.id} className="px-5 py-4 border-l border-zinc-800/50 whitespace-normal align-top">
                 <div className="flex flex-col gap-3">
                   <div>
                     <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1"><Check className="w-3 h-3" /> Proven (Code)</p>
@@ -142,7 +150,7 @@ export function CompareTable({ initialData, shortlistAction }: { initialData: an
           <tr>
             <td className="px-5 py-4 font-bold text-zinc-400 whitespace-normal">GitHub Signal Depth</td>
             {data.map(c => (
-              <td key={c.profile.id} className="px-5 py-4 border-l border-zinc-800/50 text-xs text-zinc-300">
+              <td key={c.app.id} className="px-5 py-4 border-l border-zinc-800/50 text-xs text-zinc-300">
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between">
                     <span className="text-zinc-500">Public Repos:</span>
@@ -163,7 +171,7 @@ export function CompareTable({ initialData, shortlistAction }: { initialData: an
           <tr>
             <td className="px-5 py-4 font-bold text-zinc-400">Action</td>
             {data.map(c => (
-              <td key={c.profile.id} className="px-5 py-4 border-l border-zinc-800/50">
+              <td key={c.app.id} className="px-5 py-4 border-l border-zinc-800/50">
                 {c.app.status === "shortlisted" ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 font-bold rounded-lg text-xs border border-emerald-500/20 w-full justify-center">
                     <Star className="w-3.5 h-3.5" /> Shortlisted

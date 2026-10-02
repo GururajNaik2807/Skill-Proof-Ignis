@@ -61,6 +61,18 @@ h1, h2, h3, h4, h5, h6 {
   animation: page-enter 360ms ease-out both;
 }
 
+/* Legacy recruiter surfaces inherit the landing page's Obsidian palette. */
+.bg-zinc-950 { background-color: #050505 !important; }
+.bg-zinc-900 { background-color: #0A0A0A !important; }
+.bg-zinc-800 { background-color: rgba(255, 255, 255, 0.05) !important; }
+.text-zinc-100, .text-zinc-200 { color: #EDEDED !important; }
+.text-zinc-300, .text-zinc-400, .text-zinc-500, .text-zinc-600 { color: #8A8F98 !important; }
+.border-zinc-800, .border-zinc-700 { border-color: rgba(255, 255, 255, 0.10) !important; }
+.bg-emerald-500 { background-color: #00E5FF !important; }
+.text-emerald-400 { color: #00E5FF !important; }
+.border-emerald-500, .border-emerald-500\/20, .border-emerald-500\/30 { border-color: rgba(0, 229, 255, 0.25) !important; }
+.hover\:bg-zinc-900:hover, .hover\:bg-zinc-800:hover { background-color: rgba(255, 255, 255, 0.05) !important; }
+
 /* Custom Sleek Dark Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
