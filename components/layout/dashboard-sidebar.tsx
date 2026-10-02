@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   CheckCircle2,
   GitBranch,
-  FileText,
   Briefcase,
   Layers,
   ChevronLeft,
@@ -27,18 +26,6 @@ interface SidebarProps {
 export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const [currentHash, setCurrentHash] = useState("");
-
-  // Track the URL hash (#github, #resume, #profile) so only one tab highlights
-  useEffect(() => {
-    const handleHashChange = () => {
-      setCurrentHash(window.location.hash || "");
-    };
-
-    handleHashChange();
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [pathname]);
 
   const navItems = [
     {
@@ -63,21 +50,13 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
     },
     {
       label: "GitHub",
-      href: "/onboarding#github",
+      href: "/github",
       icon: GitBranch,
-      hash: "#github",
     },
     {
-      label: "Resume",
-      href: "/onboarding#resume",
-      icon: FileText,
-      hash: "#resume",
-    },
-    {
-      label: "Profile",
-      href: "/onboarding#profile",
+      label: "Profile & Resume",
+      href: "/profile",
       icon: UserCheck,
-      hash: "#profile",
     },
   ];
 
@@ -87,7 +66,6 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
         collapsed ? "w-16 md:w-20" : "w-16 md:w-56"
       }`}
     >
-      {/* Collapse Toggle Button */}
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
@@ -102,7 +80,6 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
       </button>
 
       <div className="flex-1 flex flex-col min-h-0">
-        {/* Brand Header */}
         <div
           className={`p-4 border-b border-border flex items-center shrink-0 ${
             collapsed ? "justify-center" : "justify-center md:justify-start md:gap-2.5"
@@ -125,29 +102,16 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
           </Link>
         </div>
 
-        {/* Navigation Links */}
         <nav className="p-2 md:p-3 space-y-1 mt-2 overflow-y-auto flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const itemPath = item.href.split("#")[0];
-
-            let isActive = false;
-            if (item.hash) {
-              // For onboarding anchor links: active only if both the path and hash match
-              isActive = pathname === itemPath && (currentHash === item.hash || (!currentHash && item.hash === "#github"));
-            } else {
-              // Standard pages
-              isActive = pathname === itemPath;
-            }
+            const isActive = pathname === item.href;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 prefetch={false}
-                onClick={() => {
-                  if (item.hash) setCurrentHash(item.hash);
-                }}
                 title={collapsed ? item.label : undefined}
                 className={`flex items-center rounded-lg transition-colors text-xs font-semibold ${
                   collapsed
@@ -169,7 +133,6 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
             );
           })}
 
-          {/* Public Verification Link */}
           {shareSlug && (
             <Link
               href={`/v/${shareSlug}`}
@@ -187,7 +150,6 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
         </nav>
       </div>
 
-      {/* User Footer & Signout */}
       <div
         className={`p-4 border-t border-border flex items-center shrink-0 ${
           collapsed ? "justify-center" : "justify-between"
