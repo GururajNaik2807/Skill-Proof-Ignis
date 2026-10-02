@@ -26,7 +26,7 @@ export default async function CompareCandidatesPage({ searchParams }: PageProps)
     supabase.from("profiles").select("*").in("id", ids),
     supabase.from("skill_evidence").select("*").in("user_id", ids),
     supabase.from("github_repositories").select("*").in("user_id", ids),
-    supabase.from("job_applications").select("candidate_id, match_score, status, id").in("candidate_id", ids)
+    supabase.from("job_applications").select("candidate_id, status, id").in("candidate_id", ids)
   ]);
 
   if (!profiles || profiles.length === 0) {

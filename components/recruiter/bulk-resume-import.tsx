@@ -35,9 +35,18 @@ export function BulkResumeImport() {
       });
 
       const response = await fetch("/api/recruiter/resume/batch-upload", { method: "POST", body });
-      const data = await response.json();
+      
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          throw new Error("Batch upload failed: Server returned an invalid response.");
+        }
+        throw new Error(errorData.error || "Batch upload failed.");
+      }
 
-      if (!response.ok) throw new Error(data.error || "Batch upload failed.");
+      const data = await response.json();
 
       setItems((current) => {
         const newItems = [...current];

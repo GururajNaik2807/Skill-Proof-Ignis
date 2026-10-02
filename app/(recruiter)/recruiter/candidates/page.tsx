@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { Users, GitBranch, ArrowRight, Loader2, CheckSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BulkResumeImport } from "@/components/recruiter/bulk-resume-import";
 
 export default function CandidatesPage() {
   const supabase = createClient();
@@ -42,7 +42,7 @@ export default function CandidatesPage() {
     // 2. Get applications for these jobs
     const { data: apps } = await supabase
       .from("job_applications")
-      .select("id, job_id, candidate_id, status, created_at, match_score")
+      .select("id, job_id, candidate_id, status, created_at")
       .in("job_id", jobIds)
       .order("created_at", { ascending: false });
 
@@ -52,9 +52,8 @@ export default function CandidatesPage() {
       return;
     }
 
-    const candidateIds = apps.map((a: any) => a.candidate_id);
-
     // 3. Get candidate profiles
+    const candidateIds = apps.map((a: any) => a.candidate_id);
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, full_name, github_username")
@@ -93,8 +92,6 @@ export default function CandidatesPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300 py-4">
-      <BulkResumeImport />
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
         <div>

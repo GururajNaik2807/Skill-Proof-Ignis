@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { CandidateTable } from "@/components/recruiter/candidate-table";
 import { Plus, Users, ShieldCheck, Star, Briefcase, Search, Filter, ArrowRight } from "lucide-react";
 
@@ -18,12 +19,21 @@ export default async function RecruiterDashboard() {
     .order("created_at", { ascending: false });
 
   // 2. Fetch real submitted job applications with candidate profiles explicitly using the new FK
-  const { data: realApplications, error: appError } = await supabase
-    .from("job_applications")
-    .select(`
-      id,
-      status,
-      created_at,
+  // We use the admin client because candidate profiles might have RLS (is_public=false) preventing recruiters from seeing them
+  const supabaseAdmin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const jobIds = dbJobs?.map((j) => j.id) || [];
+  
+  const { data: realApplications, error: appError } = jobIds.length > 0 
+    ? await supabaseAdmin
+        .from("job_applications")
+        .select(`
+          id,
+          status,
+          created_at,
       candidate:profiles!job_applications_candidate_id_fkey (
         id,
         full_name,
@@ -36,7 +46,9 @@ export default async function RecruiterDashboard() {
         required_skills
       )
     `)
-    .order("created_at", { ascending: false });
+    .in("job_id", jobIds)
+    .order("created_at", { ascending: false })
+  : { data: [], error: null };
 
   if (appError) console.error("Application Join Error:", appError.message);
 

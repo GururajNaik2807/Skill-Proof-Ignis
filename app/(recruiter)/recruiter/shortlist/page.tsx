@@ -40,7 +40,7 @@ export default function ShortlistPage() {
     // 2. Get applications for these jobs WHERE status = shortlisted
     const { data: apps } = await supabase
       .from("job_applications")
-      .select("id, job_id, candidate_id, status, created_at, match_score")
+      .select("id, job_id, candidate_id, status, created_at")
       .in("job_id", jobIds)
       .eq("status", "shortlisted")
       .order("created_at", { ascending: false });
