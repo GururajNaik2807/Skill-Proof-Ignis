@@ -87,12 +87,12 @@ export default async function DashboardLayout({
         {/* User Footer */}
         <div className="p-4 border-t border-border">
           <div className="flex items-center justify-between">
-            <div className="truncate max-w-[140px]">
-              <p className="text-xs font-medium text-ink truncate">
-                {user.email}
-              </p>
-              <p className="text-[10px] text-muted-text">Standard Plan</p>
-            </div>
+            <div className="truncate max-w-36">
+            <p className="text-xs font-medium text-ink truncate">
+              {user.email}
+            </p>
+            <p className="text-[10px] text-muted-text">Standard Plan</p>
+          </div>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"

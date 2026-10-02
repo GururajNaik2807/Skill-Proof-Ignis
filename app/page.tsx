@@ -10,54 +10,15 @@ import {
   Code2,
   Terminal,
 } from "lucide-react";
+import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-warm-ivory text-ink selection:bg-emerald/20 selection:text-ink">
-      {/* Navigation */}
-      <nav className="border-b border-border bg-warm-ivory/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-deep-green flex items-center justify-center text-white">
-              <ShieldCheck className="w-5 h-5 text-emerald" />
-            </div>
-            <span className="text-lg font-bold tracking-tight font-heading">
-              SkillProof
-            </span>
-          </div>
 
-          <div className="hidden md:flex items-center gap-6 text-sm text-muted-text font-medium">
-            <a href="#how-it-works" className="hover:text-ink transition-colors">
-              How It Works
-            </a>
-            <a href="#evidence" className="hover:text-ink transition-colors">
-              Evidence Engine
-            </a>
-            <a href="#matching" className="hover:text-ink transition-colors">
-              Job Match
-            </a>
-            <a href="#faq" className="hover:text-ink transition-colors">
-              FAQ
-            </a>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm font-medium px-3.5 py-1.5 text-ink hover:text-deep-green transition-colors"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-medium px-4 py-2 bg-deep-green text-white rounded-lg hover:bg-deep-green/90 transition-colors shadow-subtle"
-            >
-              Verify Skills
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+      <Navbar />
       {/* Hero Section */}
       <section className="pt-20 pb-16 px-4 sm:px-6 max-w-5xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-soft-surface border border-border text-xs font-semibold text-deep-green mb-6">
@@ -354,23 +315,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Footer */}
-      <footer className="border-t border-border bg-soft-surface/50 py-12 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-deep-green flex items-center justify-center text-white">
-              <ShieldCheck className="w-4 h-4 text-emerald" />
-            </div>
-            <span className="text-base font-bold tracking-tight font-heading">
-              SkillProof
-            </span>
-          </div>
-          <p className="text-xs text-muted-text">
-            © {new Date().getFullYear()} SkillProof. Your resume says it. Your
-            work proves it.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

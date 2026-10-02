@@ -4,7 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import { ShieldCheck, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { PasswordRequirements, isPasswordValid } from "@/components/auth/password-requirements";
 
 export default function SignupPage() {
   const [fullName, setFullName] = useState("");
@@ -18,6 +21,12 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isPasswordValid(password)) {
+      setErrorMsg("Please satisfy all password security requirements.");
+      return;
+    }
+
     setLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
@@ -52,15 +61,17 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-lg bg-deep-green flex items-center justify-center text-white">
+        {/* Brand */}
+        <Link href="/" className="flex items-center justify-center gap-2 mb-8 group">
+          <div className="w-9 h-9 rounded-lg bg-deep-green flex items-center justify-center text-white transition-transform group-hover:scale-105">
             <ShieldCheck className="w-5 h-5 text-emerald" />
           </div>
           <span className="text-xl font-bold tracking-tight text-ink font-heading">
             SkillProof
           </span>
-        </div>
+        </Link>
 
+        {/* Card */}
         <div className="bg-white border border-border rounded-xl p-8 shadow-card">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-ink mb-1">
@@ -72,75 +83,60 @@ export default function SignupPage() {
           </div>
 
           {errorMsg && (
-            <div className="mb-5 p-3 rounded-lg bg-status-error/10 border border-status-error/20 text-status-error text-sm">
-              {errorMsg}
+            <div className="mb-5 p-3 rounded-lg bg-status-error/10 border border-status-error/20 text-status-error text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-5 p-3 rounded-lg bg-status-proven/10 border border-status-proven/20 text-status-proven text-sm">
-              {successMsg}
+            <div className="mb-5 p-3 rounded-lg bg-status-proven/10 border border-status-proven/20 text-status-proven text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{successMsg}</span>
             </div>
           )}
 
           <form onSubmit={handleSignup} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                Full Name
-              </label>
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Ada Lovelace"
-                className="w-full px-3.5 py-2.5 bg-warm-ivory/50 border border-border rounded-lg text-sm text-ink placeholder:text-muted-text/60 focus:outline-none focus:border-deep-green focus:ring-1 focus:ring-deep-green transition-colors"
-              />
-            </div>
+            <Input
+              label="Full Name"
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Alex Morgan"
+            />
 
-            <div>
-              <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@domain.com"
-                className="w-full px-3.5 py-2.5 bg-warm-ivory/50 border border-border rounded-lg text-sm text-ink placeholder:text-muted-text/60 focus:outline-none focus:border-deep-green focus:ring-1 focus:ring-deep-green transition-colors"
-              />
-            </div>
+            <Input
+              label="Email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@domain.com"
+            />
 
-            <div>
-              <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                className="w-full px-3.5 py-2.5 bg-warm-ivory/50 border border-border rounded-lg text-sm text-ink placeholder:text-muted-text/60 focus:outline-none focus:border-deep-green focus:ring-1 focus:ring-deep-green transition-colors"
-              />
-            </div>
+            <Input
+              label="Password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Create a strong password"
+            />
 
-            <button
+            {/* Interactive Password Requirements Box */}
+            {password.length > 0 && (
+              <PasswordRequirements value={password} />
+            )}
+
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-deep-green text-white font-medium rounded-lg text-sm hover:bg-deep-green/90 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+              loading={loading}
+              className="w-full mt-2"
             >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  Get Started
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              Get Started
+              <ArrowRight className="w-4 h-4" />
+            </Button>
           </form>
         </div>
 
