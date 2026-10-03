@@ -13,7 +13,7 @@ import {
   Settings,
 } from "lucide-react";
 import { getUserRole } from "@/lib/auth/roles";
-
+import { RecruiterLogoutButton } from "@/components/recruiter/logout-button";
 export default async function RecruiterLayout({
   children,
 }: {
@@ -140,15 +140,7 @@ export default async function RecruiterLayout({
               </p>
               <p className="text-[10px] text-zinc-500 font-mono truncate">{user.email}</p>
             </div>
-            <form action="/auth/signout" method="POST">
-              <button
-                type="submit"
-                title="Sign out"
-                className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </form>
+            <RecruiterLogoutButton />
           </div>
         </div>
       </aside>

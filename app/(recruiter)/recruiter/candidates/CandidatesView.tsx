@@ -53,20 +53,14 @@ export default function CandidatesPage() {
       return;
     }
 
-    // 3. Get candidate profiles
+    // 3. Get candidate profiles & 4. Get skill evidence (Parallelized)
     const candidateIds = apps.map((a: any) => a.candidate_id);
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, github_username")
-      .in("id", candidateIds);
+    const [ { data: profiles }, { data: evidenceList } ] = await Promise.all([
+      supabase.from("profiles").select("id, full_name, github_username").in("id", candidateIds),
+      supabase.from("skill_evidence").select("user_id, skill_name, status").in("user_id", candidateIds)
+    ]);
 
     const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
-
-    // 4. Get skill evidence for job matching
-    const { data: evidenceList } = await supabase
-      .from("skill_evidence")
-      .select("user_id, skill_name, status")
-      .in("user_id", candidateIds);
 
     const evidenceByCandidate = new Map<string, any[]>();
     evidenceList?.forEach((e: any) => {
@@ -113,9 +107,14 @@ export default function CandidatesPage() {
   };
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
+    setSelectedIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(x => x !== id);
+      } else {
+        if (prev.length >= 4) return prev; // Limit to 4
+        return [...prev, id];
+      }
+    });
   };
 
   const handleCompare = () => {
@@ -133,17 +132,9 @@ export default function CandidatesPage() {
             Candidates Pipeline
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Manage applicants across all active jobs. Select multiple to compare.
+            Manage applicants across all active jobs. Select up to 4 to compare.
           </p>
         </div>
-
-        <button
-          onClick={handleCompare}
-          disabled={selectedIds.length < 2}
-          className="px-5 py-2.5 bg-zinc-900 border border-zinc-700 hover:border-emerald-500 hover:text-emerald-400 text-zinc-300 text-sm font-bold rounded-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <CheckSquare className="w-4 h-4" /> Compare Selected ({selectedIds.length})
-        </button>
       </div>
 
       {loading ? (
@@ -168,15 +159,15 @@ export default function CandidatesPage() {
                   <th className="px-5 py-4 w-12 text-center">
                     <input 
                       type="checkbox" 
-                      className="rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-emerald-500/20"
+                      className="rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-emerald-500/20 disabled:opacity-50"
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedIds(candidates.map(c => c.id));
+                          setSelectedIds(candidates.slice(0, 4).map(c => c.id));
                         } else {
                           setSelectedIds([]);
                         }
                       }}
-                      checked={selectedIds.length === candidates.length && candidates.length > 0}
+                      checked={selectedIds.length > 0 && selectedIds.length === Math.min(candidates.length, 4)}
                     />
                   </th>
                   <th className="px-5 py-4">Candidate</th>
@@ -248,6 +239,20 @@ export default function CandidatesPage() {
           </div>
         </div>
       )}
+      {/* Floating Action Bar */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${selectedIds.length > 0 ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
+        <div className="bg-zinc-900/90 backdrop-blur-lg border border-emerald-500/30 p-4 rounded-2xl shadow-[0_8px_32px_-4px_rgba(0,229,255,0.15)] flex items-center gap-6">
+          <span className="text-sm font-bold text-zinc-200">
+            {selectedIds.length} candidate{selectedIds.length !== 1 ? 's' : ''} selected
+          </span>
+          <button
+            onClick={handleCompare}
+            className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 text-sm font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg"
+          >
+            <CheckSquare className="w-4 h-4" /> Compare Candidates
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

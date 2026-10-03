@@ -1,102 +1,76 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { normalizeRole, workspaceForRole } from "@/lib/auth/roles";
+import { createServerClient } from "@supabase/ssr";
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  // Bypass auth checks gracefully if Supabase environment variables are not yet configured
-  const isValidUrl = supabaseUrl && (supabaseUrl.startsWith("http://") || supabaseUrl.startsWith("https://"));
-  if (!isValidUrl || !supabaseKey || supabaseKey.startsWith("your_")) {
-    return supabaseResponse;
-  }
-
-  try {
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseKey,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) =>
-              request.cookies.set(name, value)
-            );
-            supabaseResponse = NextResponse.next({
-              request,
-            });
-            cookiesToSet.forEach(({ name, value, options }) =>
-              supabaseResponse.cookies.set(name, value, options)
-            );
-          },
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
         },
-      }
-    );
-
-    // Refresh auth session
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const isAuthRoute =
-      request.nextUrl.pathname.startsWith("/login") ||
-      request.nextUrl.pathname.startsWith("/signup");
-    const isDashboardRoute =
-      request.nextUrl.pathname.startsWith("/dashboard") ||
-      request.nextUrl.pathname.startsWith("/onboarding") ||
-      request.nextUrl.pathname.startsWith("/matrix") ||
-      request.nextUrl.pathname.startsWith("/jobs") ||
-      request.nextUrl.pathname.startsWith("/tasks");
-    const isRecruiterRoute = request.nextUrl.pathname.startsWith("/recruiter");
-
-    if (!user && (isDashboardRoute || isRecruiterRoute)) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          response = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
     }
+  );
 
-    if (user && (isAuthRoute || isDashboardRoute || isRecruiterRoute)) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-      const role = normalizeRole(profile?.role ?? user.user_metadata?.role);
+  // This is required to refresh the session and populate user on the server
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-      if (!role) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/login";
-        url.searchParams.set("error", "profile-role-required");
-        return NextResponse.redirect(url);
-      }
+  const protectedPaths = [
+    "/dashboard",
+    "/recruiter",
+    "/github",
+    "/matrix",
+    "/jobs",
+    "/tasks",
+    "/profile",
+    "/onboarding",
+    "/candidates",
+    "/compare",
+    "/shortlist",
+    "/settings",
+  ];
 
-      const url = request.nextUrl.clone();
-      if (isAuthRoute) {
-        url.pathname = workspaceForRole(role);
-        return NextResponse.redirect(url);
-      }
+  const currentPath = request.nextUrl.pathname;
 
-      if ((isDashboardRoute && role === "recruiter") || (isRecruiterRoute && role === "candidate")) {
-        url.pathname = workspaceForRole(role);
-        return NextResponse.redirect(url);
-      }
-    }
-  } catch (error) {
-    console.error("Supabase middleware error:", error);
+  const isProtectedRoute = protectedPaths.some(
+    (prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`)
+  );
+
+  if (isProtectedRoute && !user) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
-  return supabaseResponse;
+  return response;
 }
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - any file with an extension (e.g. .svg, .png)
+     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

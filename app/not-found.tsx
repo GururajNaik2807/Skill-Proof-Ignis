@@ -1,6 +1,68 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowLeft, Check, FileCode2, GitBranch, ShieldCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { Terminal, SearchX } from "lucide-react";
 
 export default function NotFound() {
-  return <main className="min-h-screen bg-[#050505] text-[#EDEDED] flex items-center justify-center px-6 py-16"><div className="w-full max-w-3xl border border-white/10 bg-[#0A0A0A] p-6 sm:p-10 shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)]"><div className="flex items-center gap-3 border-b border-white/10 pb-5"><div className="w-9 h-9 border border-[#00E5FF]/30 bg-[#00E5FF]/10 flex items-center justify-center"><ShieldCheck className="w-5 h-5 text-[#00E5FF]" /></div><div><p className="font-semibold">SkillProof</p><p className="text-xs text-[#8A8F98] font-mono">EVIDENCE PREVIEW</p></div></div><div className="grid md:grid-cols-[0.8fr_1.2fr] gap-10 pt-8"><div><p className="text-xs font-mono tracking-widest text-[#00E5FF]">404 / DEMO REPORT</p><h1 className="mt-3 text-4xl font-semibold tracking-tight">Evidence view unavailable.</h1><p className="mt-4 text-sm leading-6 text-[#8A8F98]">That route does not have a live record yet. Here is the same evidence language used throughout SkillProof.</p><Link href="/" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#00E5FF]"><ArrowLeft className="w-4 h-4" />Return home</Link></div><div className="border border-white/10 bg-[#050505] p-5 font-mono text-sm"><div className="flex items-center justify-between border-b border-white/10 pb-4"><span className="text-[#EDEDED]">react-dashboard</span><span className="text-[#00E599] text-xs">PROVEN</span></div><div className="space-y-4 pt-5 text-[#8A8F98]"><p className="flex items-center gap-2"><GitBranch className="w-4 h-4 text-[#00E5FF]" />3 public repositories</p><p className="flex items-center gap-2"><FileCode2 className="w-4 h-4 text-[#00E5FF]" />package.json · React dependencies</p><p className="flex items-center gap-2"><Check className="w-4 h-4 text-[#00E599]" />Tests detected · recent activity</p></div></div></div></div></main>;
+  return (
+    <main className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-6 text-[#EDEDED] font-sans relative overflow-hidden">
+      
+      {/* Decorative ambient background glow */}
+      <div className="absolute inset-0 pointer-events-none -z-10 flex items-center justify-center">
+        <div className="w-[30rem] h-[30rem] bg-[#00E5FF]/[0.03] rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-md w-full text-center flex flex-col items-center relative z-10">
+        
+        {/* Animated Icon */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-16 h-16 rounded-2xl bg-[#00E5FF]/10 border border-[#00E5FF]/30 flex items-center justify-center mb-8 shadow-[0_0_20px_rgba(0,229,255,0.15)] relative"
+        >
+          <SearchX className="w-8 h-8 text-[#00E5FF]" />
+        </motion.div>
+
+        {/* 404 Text with Pulse Effect */}
+        <motion.h1
+          animate={{
+            textShadow: [
+              "0px 0px 8px rgba(0,229,255,0.3)",
+              "0px 0px 20px rgba(0,229,255,0.7)",
+              "0px 0px 8px rgba(0,229,255,0.3)",
+            ],
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          className="text-7xl sm:text-8xl font-black tracking-tighter text-[#EDEDED] mb-4 font-mono"
+        >
+          404
+        </motion.h1>
+
+        {/* Fade up content */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+          className="flex flex-col items-center"
+        >
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 tracking-tight text-[#EDEDED]">
+            Skill not found.
+          </h2>
+          <p className="text-[#8A8F98] text-sm mb-10 max-w-[280px] leading-relaxed">
+            Looks like this route hasn't been deployed yet, or the evidence was lost in the pipeline.
+          </p>
+
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#00E5FF]/10 text-[#00E5FF] font-semibold text-sm rounded-xl border border-[#00E5FF]/30 hover:bg-[#00E5FF]/20 hover:border-[#00E5FF]/50 transition-all duration-300 shadow-[0_0_12px_rgba(0,229,255,0.15)] hover:shadow-[0_0_24px_rgba(0,229,255,0.25)]"
+          >
+            <Terminal className="w-4 h-4" />
+            Return to Dashboard
+          </Link>
+        </motion.div>
+      </div>
+    </main>
+  );
 }

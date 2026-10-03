@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { extractSkills, ExtractedSkill } from "@/lib/gemini/extractor";
 
 export async function POST(req: Request) {
   // Safe import for pdf-parse in Next.js / TypeScript
@@ -67,16 +66,51 @@ export async function POST(req: Request) {
       throw new Error(resumeInsertErr?.message || "Failed to save resume record");
     }
 
-    // 4. Extract structured skills with Gemini
-    const extracted: ExtractedSkill[] = await extractSkills(parsedText);
+    // 4. Extract structured skills with local Ollama
+    const prompt = `You are a strict data extraction AI. Extract skills, experience, and education from the following resume text.
+Return ONLY a valid JSON object with the following structure:
+{
+  "skills": [
+    { "skill_name": "string", "category": "string", "claimed_context": "string" }
+  ],
+  "experience": [],
+  "education": []
+}
+Resume Text:
+${parsedText.slice(0, 15000)}`;
+
+    const ollamaRes = await fetch("http://localhost:11434/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "llama3",
+        prompt: prompt,
+        stream: false,
+        format: "json",
+      }),
+    });
+
+    if (!ollamaRes.ok) {
+      throw new Error(`Ollama API error: ${ollamaRes.statusText}`);
+    }
+
+    const ollamaData = await ollamaRes.json();
+    let extracted: any[] = [];
+    try {
+      const parsed = JSON.parse(ollamaData.response);
+      extracted = parsed.skills || [];
+    } catch (e) {
+      console.error("Failed to parse Ollama JSON:", e);
+      extracted = [];
+    }
 
     if (extracted.length > 0) {
-      const skillsToInsert = extracted.map((s: ExtractedSkill) => ({
+      const skillsToInsert = extracted.map((s: any) => ({
         user_id: user.id,
         resume_id: resumeRecord.id,
-        skill_name: s.skill_name,
-        category: s.category,
-        claimed_context: s.claimed_context,
+        skill_name: s.skill_name || "Unknown Skill",
+        category: s.category || "General",
+        claimed_context: s.claimed_context || null,
       }));
 
       const { error: skillsInsertErr } = await supabase
@@ -92,7 +126,7 @@ export async function POST(req: Request) {
       success: true,
       fileName: file.name,
       skillsExtracted: extracted.length,
-      skills: extracted.map((e: ExtractedSkill) => e.skill_name),
+      skills: extracted.map((e: any) => e.skill_name),
     });
   } catch (err: unknown) {
     console.error("Resume upload & parse error:", err);

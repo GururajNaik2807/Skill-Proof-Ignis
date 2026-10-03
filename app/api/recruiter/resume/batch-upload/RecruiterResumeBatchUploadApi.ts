@@ -1,30 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { extractSkills, ExtractedSkill } from "@/lib/gemini/extractor";
+import { parseResumeWithOllama } from "@/lib/ollama-parser";
 
 export async function POST(req: Request) {
   try {
-    // Polyfills for pdf-parse (pdfjs-dist) in Node environment
-    if (typeof globalThis.DOMMatrix === "undefined") {
-      (globalThis as any).DOMMatrix = class DOMMatrix {
-        constructor() {}
-      };
-    }
-    if (typeof globalThis.ImageData === "undefined") {
-      (globalThis as any).ImageData = class ImageData {
-        constructor() {}
-      };
-    }
-    if (typeof globalThis.Path2D === "undefined") {
-      (globalThis as any).Path2D = class Path2D {
-        constructor() {}
-      };
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParseModule = require("pdf-parse");
-    const pdfParse = pdfParseModule.default || pdfParseModule;
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -55,24 +35,17 @@ export async function POST(req: Request) {
           }
           
           const arrayBuffer = await file.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          let parsedText = "";
-          
+          let extracted: any;
           try {
-            const pdfData = await pdfParse(buffer);
-            parsedText = pdfData?.text || "";
-          } catch (parseErr: any) {
-            console.error("PDF parse error:", parseErr);
-            return { fileName: file.name, success: false, error: "PDF extraction failed: " + parseErr.message };
+            extracted = await parseResumeWithOllama(Buffer.from(arrayBuffer));
+          } catch (ollamaErr: any) {
+            console.error("Parsing failed:", ollamaErr);
+            return { fileName: file.name, success: false, error: ollamaErr.message || "Parsing failed" };
           }
           
-          if (!parsedText.trim()) {
-            return { fileName: file.name, success: false, error: "No parseable text" };
-          }
-
           // Generate a fake candidate UUID based on filename hash or random
           const shadowEmail = `${crypto.randomUUID().slice(0, 8)}@shadow.candidate.local`;
-          const candidateName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+          const candidateName = extracted?.fullName || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
 
           const supabaseAdmin = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -86,23 +59,21 @@ export async function POST(req: Request) {
           });
 
           if (authCreateErr || !authUser.user) {
-            console.error("Shadow auth creation error:", authCreateErr);
-            return { fileName: file.name, success: false, error: "Failed to create shadow auth user: " + authCreateErr?.message };
+            return { fileName: file.name, success: false, error: "Failed to create shadow auth user" };
           }
 
           const shadowId = authUser.user.id;
 
-          const { error: profileErr } = await supabaseAdmin.from("profiles").insert({
+          const { error: profileErr } = await supabaseAdmin.from("profiles").upsert({
             id: shadowId,
             full_name: candidateName,
             role: "candidate",
-            email: shadowEmail,
+            parsed_experience: extracted?.experience,
+            education: extracted?.education,
           });
           
           if (profileErr) {
-            console.error("Shadow profile creation error:", profileErr);
-            // If we can't create a shadow profile, we can't link resumes.
-            // Let's try inserting the resume anyway? Resumes usually need user_id.
+            console.error("Profile Error:", profileErr);
             return { fileName: file.name, success: false, error: "Failed to create shadow profile: " + profileErr.message };
           }
 
@@ -112,7 +83,7 @@ export async function POST(req: Request) {
               user_id: shadowId,
               file_name: file.name,
               file_url: "batch-upload",
-              parsed_text: parsedText.slice(0, 100000),
+              parsed_text: JSON.stringify(extracted).slice(0, 100000),
             })
             .select("id")
             .single();
@@ -121,20 +92,31 @@ export async function POST(req: Request) {
             return { fileName: file.name, success: false, error: "Failed to save resume" };
           }
 
-          const extracted: ExtractedSkill[] = await extractSkills(parsedText);
+          const skillsList: string[] = Array.isArray(extracted?.skills) ? extracted.skills : [];
           
-          if (extracted.length > 0) {
-            const skillsToInsert = extracted.map((s: ExtractedSkill) => ({
+          if (skillsList.length > 0) {
+            const skillsToInsert = skillsList.map((skill: string) => ({
               user_id: shadowId,
               resume_id: resumeRecord.id,
-              skill_name: s.skill_name,
-              category: s.category,
-              claimed_context: s.claimed_context,
+              skill_name: skill,
+              category: "Extracted",
+              claimed_context: "Parsed by Ollama",
             }));
             await supabase.from("resume_skills").insert(skillsToInsert);
           }
 
-          return { fileName: file.name, success: true, skillsExtracted: extracted.length };
+          return { 
+            fileName: file.name, 
+            success: true, 
+            skillsExtracted: skillsList.length,
+            profile: {
+              id: shadowId,
+              full_name: candidateName,
+              skills: skillsList,
+              experience: extracted?.experience,
+              education: extracted?.education
+            }
+          };
         } catch (e: any) {
           return { fileName: file.name, success: false, error: e.message };
         }

@@ -229,9 +229,9 @@ export default function ProfileResumePath() {
 
     try {
       const formData = new FormData();
-      formData.append("resume", file);
+      formData.append("file", file);
 
-      const res = await fetch("/api/resume/upload", {
+      const res = await fetch("/api/resume/parse", {
         method: "POST",
         body: formData,
       });
@@ -240,9 +240,10 @@ export default function ProfileResumePath() {
       if (!res.ok) throw new Error(data.error || "Failed to upload resume.");
 
       await Promise.all([fetchResume(), refreshData()]);
+      router.refresh();
       setNotice({
         type: "success",
-        message: `Resume parsed! Extracted ${data.skillsExtracted || 0} technical proficiencies via Gemini.`,
+        message: "Resume parsed and saved successfully",
       });
       setActiveStepIndex(1); // Proceed to Node 2
     } catch (err: unknown) {
@@ -465,7 +466,7 @@ export default function ProfileResumePath() {
           className={`flex items-center justify-between rounded-xl border p-4 text-xs transition-all ${
             notice.type === "success"
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-              : "bg-red-500/10 border-red-500/30 text-red-300"
+              : "bg-red-500/10 border-red-500/30 text-red-400"
           }`}
         >
           <div className="flex items-center gap-2.5">
@@ -504,7 +505,7 @@ export default function ProfileResumePath() {
                 Upload Primary Technical Resume
               </h2>
               <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl">
-                SkillProof inspects textual claims using Google Gemini to extract concrete proficiencies, frameworks, and developer tools. Strictly 1 active document is retained.
+                SkillProof inspects textual claims using local Llama 3.2 to extract concrete proficiencies, frameworks, and developer tools. Strictly 1 active document is retained.
               </p>
             </div>
 
@@ -535,7 +536,7 @@ export default function ProfileResumePath() {
                 </button>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-zinc-800 hover:border-zinc-700 rounded-xl p-10 text-center bg-zinc-950/40 transition-colors">
+              <div className={`border-2 border-dashed rounded-xl p-10 text-center transition-all ${isUploading ? 'border-cyan-500 bg-cyan-500/5 shadow-[0_0_12px_rgba(0,229,255,0.15)]' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-950/40'}`}>
                 <input
                   type="file"
                   id="resume-dropzone-input"
@@ -547,15 +548,15 @@ export default function ProfileResumePath() {
                 <label
                   htmlFor="resume-dropzone-input"
                   className={`flex flex-col items-center justify-center gap-3 cursor-pointer ${
-                    isUploading ? "opacity-50 pointer-events-none" : ""
+                    isUploading ? "pointer-events-none" : ""
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <div className={`w-12 h-12 rounded-full border flex items-center justify-center ${isUploading ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
                     {isUploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <FileUp className="w-6 h-6" />}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-zinc-200">
-                      {isUploading ? "Extracting skill claims via Gemini..." : "Click to select or drop technical PDF resume"}
+                    <p className={`text-sm font-semibold ${isUploading ? 'text-cyan-400' : 'text-zinc-200'}`}>
+                      {isUploading ? "Parsing resume locally with Llama 3.2..." : "Click to select or drop technical PDF resume"}
                     </p>
                     <p className="text-[11px] font-mono text-zinc-500 mt-1">
                       Max file size 5MB • Formatted PDF with selectable text
@@ -658,7 +659,7 @@ export default function ProfileResumePath() {
                   Extracted Resume Claims ({resumeSkills.length})
                 </h2>
                 <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl">
-                  Canonical skills detected by Gemini. These proficiencies represent claimed candidate competencies queued for evidence auditing.
+                  Canonical skills detected by Llama 3.2. These proficiencies represent claimed candidate competencies queued for evidence auditing.
                 </p>
               </div>
 
@@ -669,7 +670,7 @@ export default function ProfileResumePath() {
                   try {
                     await fetch("/api/resume/parse", { method: "POST" });
                     await refreshData();
-                    setNotice({ type: "success", message: "Proficiencies re-extracted via Gemini." });
+                    setNotice({ type: "success", message: "Proficiencies re-extracted via Ollama." });
                   } catch {
                     setNotice({ type: "error", message: "Failed to re-extract skills." });
                   }

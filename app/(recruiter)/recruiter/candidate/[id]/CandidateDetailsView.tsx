@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Check, ExternalLink, GitBranch, X, Star } from "lucide-react";
 import { revalidatePath } from "next/cache";
-import { EvidenceVisualizer } from "@/components/recruiter/evidence-visualizer";
+import { CandidateDualColumn } from "@/components/recruiter/candidate-dual-column";
 import { calculateMatchScore, ParsedJobRequirement, CandidateSkillInput } from "@/lib/shared/match-calculator";
 
 interface PageProps { params: Promise<{ id: string }>; searchParams?: Promise<{ jobId?: string }> }
@@ -22,9 +22,10 @@ export default async function CandidateAuditPage({ params, searchParams }: PageP
 
   if (!profile) notFound();
 
-  const [{ data: repositories }, { data: evidence }] = await Promise.all([
+  const [{ data: repositories }, { data: evidence }, { data: resumeSkills }] = await Promise.all([
     supabase.from("github_repositories").select("id, repo_name, repo_url, primary_language, languages_breakdown, detected_dependencies, has_tests, has_docker, last_commit_at").eq("user_id", id).order("last_commit_at", { ascending: false }),
     supabase.from("skill_evidence").select("id, skill_name, status, confidence_score, evidence_summary, matched_repos").eq("user_id", id).order("confidence_score", { ascending: false }),
+    supabase.from("resume_skills").select("*").eq("user_id", id),
   ]);
 
   const proven = evidence?.filter((item) => item.status === "proven").length || 0;
@@ -157,8 +158,13 @@ export default async function CandidateAuditPage({ params, searchParams }: PageP
       </section>
 
       <section>
-        <div className="mb-4"><p className="text-sm font-semibold text-emerald-400">Required skill evidence</p><h2 className="font-heading text-2xl font-bold mt-1 text-zinc-100">What the public work supports</h2></div>
-        <EvidenceVisualizer evidence={evidence || []} />
+        <div className="mb-4"><p className="text-sm font-semibold text-emerald-400">Required skill evidence</p><h2 className="font-heading text-2xl font-bold mt-1 text-zinc-100">Code mapped to Resume</h2></div>
+        <CandidateDualColumn 
+          resumeSkills={resumeSkills || []} 
+          evidence={evidence || []} 
+          repositories={repositories || []} 
+          candidateId={id} 
+        />
       </section>
 
       <section>

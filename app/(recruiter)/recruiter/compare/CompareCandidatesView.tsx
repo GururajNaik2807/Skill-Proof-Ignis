@@ -143,6 +143,24 @@ export default async function CompareCandidatesPage({ searchParams }: PageProps)
     
     const reposWithTests = cRepos.filter(r => r.has_tests).length;
 
+    const languageCounts: Record<string, number> = {};
+    cRepos.forEach((r: any) => {
+      let breakdown: Record<string, number> = {};
+      try {
+        breakdown = typeof r.languages_breakdown === 'string' 
+          ? JSON.parse(r.languages_breakdown || '{}') 
+          : (r.languages_breakdown || {});
+      } catch (e) {}
+      
+      Object.entries(breakdown).forEach(([lang, bytes]) => {
+        languageCounts[lang] = (languageCounts[lang] || 0) + (Number(bytes) || 0);
+      });
+    });
+    const topLanguages = Object.entries(languageCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(entry => entry[0]);
+
     return {
       id: app.id,
       profile: p || {},
@@ -152,7 +170,8 @@ export default async function CompareCandidatesPage({ searchParams }: PageProps)
       claimed,
       lastCommitAt: lastCommitRepo?.last_commit_at,
       repoCount: cRepos.length,
-      reposWithTests
+      reposWithTests,
+      topLanguages
     };
   });
 

@@ -32,8 +32,8 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    // Redirect to landing page with a query param that triggers the login modal
-    router.push("/?auth=login");
+    router.replace("/");
+    router.refresh();
   };
 
   const navItems = [
@@ -120,7 +120,6 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
               <Link
                 key={item.href}
                 href={item.href}
-                prefetch={false}
                 title={collapsed ? item.label : undefined}
                 className={`flex items-center rounded-lg transition-colors text-xs font-semibold ${
                   collapsed
@@ -146,7 +145,6 @@ export function DashboardSidebar({ userEmail, fullName, shareSlug }: SidebarProp
             <Link
               href={`/v/${shareSlug}`}
               target="_blank"
-              prefetch={false}
               title={collapsed ? "Public Proof URL" : undefined}
               className={`flex items-center rounded-lg transition-colors text-xs font-semibold text-[#8A8F98] hover:text-[#EDEDED] hover:bg-white/5 border border-transparent ${
                 collapsed ? "justify-center px-0 py-3" : "gap-3 px-3.5 py-2.5"

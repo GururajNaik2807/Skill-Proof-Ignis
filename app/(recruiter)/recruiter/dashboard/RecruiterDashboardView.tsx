@@ -4,6 +4,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { CandidateTable } from "@/components/recruiter/candidate-table";
 import { calculateMatchScore, ParsedJobRequirement, CandidateSkillInput } from "@/lib/shared/match-calculator";
 import { Plus, Users, ShieldCheck, Star, Briefcase, Search, Filter, ArrowRight } from "lucide-react";
+import { QuickParseDropzone } from "@/components/recruiter/quick-parse-dropzone";
 
 export default async function RecruiterDashboard() {
   const supabase = await createClient();
@@ -146,9 +147,73 @@ export default async function RecruiterDashboard() {
         ))}
       </div>
 
+      <QuickParseDropzone />
+
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-          <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest">Active Jobs</h2>
+          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
+            <Users className="w-5 h-5 text-emerald-400" /> Recent Candidates
+          </h2>
+          <Link href="/recruiter/candidates" className="text-xs font-semibold text-zinc-400 hover:text-emerald-400 hover:underline">
+            View All Pipeline →
+          </Link>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {candidateRows.length === 0 ? (
+            <div className="col-span-3 p-8 border border-dashed border-zinc-800 rounded-2xl text-center bg-zinc-900/30">
+              <p className="text-sm text-zinc-400">No candidates found. Upload a resume or share your job link.</p>
+            </div>
+          ) : (
+            candidateRows.slice(0, 3).map((c: any, index: number) => {
+              // Calculate evidence percentage
+              const scoreParts = (c.evidence_score || "0/0").split("/");
+              const proven = parseInt(scoreParts[0] || "0", 10);
+              const total = parseInt(scoreParts[1] || "1", 10);
+              const percentage = total > 0 ? Math.round((proven / total) * 100) : 0;
+              
+              // SVG Circle properties
+              const radius = 24;
+              const circumference = 2 * Math.PI * radius;
+              const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+              return (
+                <div key={c.application_id || `${c.id}-${index}`} className="p-5 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/80 transition-colors rounded-2xl flex items-center justify-between group cursor-pointer">
+                  <div className="flex-1">
+                    <h3 className="text-base font-bold text-zinc-100 group-hover:text-emerald-400 transition-colors">{c.full_name}</h3>
+                    <p className="text-xs text-zinc-500 mt-1">{c.target_role || "Candidate"}</p>
+                    <Link href={`/recruiter/candidate/${c.id}`} className="inline-flex items-center gap-1 mt-3 text-[10px] font-bold text-zinc-400 uppercase tracking-wider group-hover:text-emerald-400 transition-colors">
+                      View Profile <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                  
+                  <div className="relative flex items-center justify-center w-16 h-16">
+                    <svg className="w-16 h-16 transform -rotate-90">
+                      <circle cx="32" cy="32" r={radius} stroke="currentColor" strokeWidth="4" fill="transparent" className="text-zinc-800" />
+                      <circle 
+                        cx="32" cy="32" r={radius} 
+                        stroke="currentColor" strokeWidth="4" fill="transparent" 
+                        strokeDasharray={circumference} 
+                        strokeDashoffset={strokeDashoffset} 
+                        className="text-emerald-400 transition-all duration-1000 ease-out" 
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-bold text-zinc-100 font-mono">{percentage}%</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-widest flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-zinc-400" /> Active Jobs
+          </h2>
           <Link href="/recruiter/jobs" className="text-xs font-semibold text-emerald-400 hover:underline">
             Manage Jobs →
           </Link>
@@ -192,11 +257,12 @@ export default async function RecruiterDashboard() {
               <input
                 type="text"
                 placeholder="Search candidates by name, skill, or repository..."
+                suppressHydrationWarning
                 className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500/50 rounded-xl pl-9 pr-4 py-2 text-sm text-zinc-200 outline-none transition-all"
               />
             </div>
             <div className="flex gap-2">
-              <button className="px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-medium text-zinc-300 flex items-center gap-2 hover:bg-zinc-800 transition-colors">
+              <button suppressHydrationWarning className="px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-medium text-zinc-300 flex items-center gap-2 hover:bg-zinc-800 transition-colors">
                 <Filter className="w-3.5 h-3.5" /> Evidence
               </button>
             </div>
